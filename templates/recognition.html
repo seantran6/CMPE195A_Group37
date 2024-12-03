@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Age and Gender Recognition (Live Feed)</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Live Feed for Age and Gender Recognition</h1>
+
+    <!-- Video feed from webcam -->
+    <video id="webcam" autoplay playsinline width="640" height="480"></video>
+    <button id="capture-btn">Capture Frame</button>
+
+    <!-- Display the results -->
+    <div id="result">
+        <p id="gender">Gender: </p>
+        <p id="age">Age: </p>
+    </div>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const captureBtn = document.getElementById('capture-btn');
+        const genderOutput = document.getElementById('gender');
+        const ageOutput = document.getElementById('age');
+
+        // Start webcam
+        async function startWebcam() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                console.log('Webcam is running');
+            } catch (error) {
+                console.error('Error accessing webcam:', error);
+                alert('Error accessing webcam. Please check your device settings.');
+            }
+        }
+
+        // Capture frame from video and send to server
+        async function captureFrame() {
+            console.log('Capture frame button clicked'); // Debugging
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageData = canvas.toDataURL('image/jpeg'); // Convert to base64 image data
+            console.log('Sending image data to server'); // Debugging
+
+            try {
+                const response = await fetch('/recognize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: imageData })
+                });
+
+                const result = await response.json();
+                console.log('Received response from server:', result); // Debugging
+                // Update gender and age on the page
+                genderOutput.textContent = `Gender: ${result.gender}`;
+                ageOutput.textContent = `Age: ${result.age}`;
+            } catch (error) {
+                console.error('Error sending frame to server:', error);
+            }
+        }
+
+        captureBtn.addEventListener('click', captureFrame);
+
+        // Start webcam on load
+        startWebcam();
+    </script>
+
+    <!-- Link to external JS file -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
