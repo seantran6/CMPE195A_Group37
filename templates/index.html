@@ -4,15 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Using Facial Recognition to Recommend Songs</title>
-    <link rel = "stylesheet" href = "../static/style.css">
+    <link rel="stylesheet" href="../static/style.css">
 </head>
 
 <body>
-    <section id = "main">
-        <h1><a href="/recognition">Click Here to Recommend Songs</a></h1>
+    <header>
+        <nav class="navbar">
+            <a href="{{ url_for('home') }}" class="nav-logo">
 
+                <h1 class="logo-text">Logo goes Here</h1>
+            </a>
+
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
+                <li class="nav-item"><a href="{{ url_for('recognition') }}" class="nav-link">Recognition</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">Login</a></li>
+            </ul>
+        </nav>
+    </header>   
+
+    <section id="main">
+        <a href="/recognition" class="recommend-btn">Click Here to Recommend Songs</a>
     </section>
+
+
+    
 </body> 
-
-
 </html>

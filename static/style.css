@@ -1,80 +1,234 @@
 /* Font */
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Text:ital@0;1&family=Lexend:wght@100..900&display=swap');
 
-/* Main Page Text */
-#main {
-    font-family: "Lexend", sans-serif;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#main h1 {
-    list-style: none;
-    padding: 0 20px;
-
-}
-
-#main h1 a {
-    text-decoration: none;
-    font-weight: 600;
-    color:black;
-    transition: 0.3s ease;
-}
-
-#main h1 a:hover {
-    color:deeppink;
-}
-
-/* Facial Recognition Text */
+/* General Layout */
 body {
-    font-family: "Lexend", sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-    background-color: #f4f4f9;
-  }
-  
-  .container {
-    text-align: center;
-    background: #ffffff;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    max-width: 400px;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center; /* Center content horizontally */
-  }
-  
-  video {
-    width: 100%;
-    max-width: 400px;
-    margin-bottom: 20px;
-    border-radius: 10px;
-  }
-  
-  button {
-    font-family: "Lexend", sans-serif;
-    padding: 10px 20px;
-    background-color: #007bff;
-    color: #fff;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    margin-top: 10px; /* Add space above the button */
-  }
-  
-  button:hover {
-    background-color: #0056b3;
-  }
-  
-  #result {
-    margin-top: 20px;
-    font-size: 18px;
-  }
-  
-  
+  font-family: "Lexend", sans-serif;
+  background-color: #f4f4f9; /* Light pastel background */
+  display: flex;
+  flex-direction: column; /* Ensure content is stacked vertically */
+  justify-content: flex-start; /* Align content to the top of the screen */
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+  margin-top: 40px; /* Add some space between the header and the main content */
+  text-align: center;
+}
+
+/* Container Styling */
+.container {
+  text-align: center;
+  background: #ffffff;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1); /* Soft shadow for depth */
+  max-width: 450px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  margin-top: 30px; /* Added margin-top for spacing */
+}
+
+/* Title Styling */
+h1 {
+  font-family: "DM Serif Text", serif;
+  font-size: 1.8rem;
+  color: #333;
+  margin-bottom: 20px; /* Ensure space between title and webcam */
+}
+
+/* Video Container */
+.video-container {
+  display: inline-block;
+  border: 4px solid #f0c0d4; /* Soft pink border */
+  border-radius: 12px;
+  margin-bottom: 20px;
+  padding: 5px;
+}
+
+/* Video styling */
+video {
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  border-radius: 12px;
+}
+
+/* Button Styling */
+button {
+  font-family: "Lexend", sans-serif;
+  padding: 12px 24px;
+  background-color: #ff77b4; /* Soft pink background */
+  color: white;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  margin-top: 15px;
+  font-size: 1.1rem;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+button:hover {
+  background-color: #ff56a0;
+  transform: scale(1.05);
+}
+
+/* Results Section */
+#result {
+  margin-top: 20px;
+  font-size: 1.2rem;
+  color: #555;
+}
+
+#gender, #age {
+  font-weight: bold;
+}
+
+/* HEADER */
+/* Import Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700&display=swap');
+
+/* Header/Nav Styling */
+header {
+  width: 100%;
+  background-color: #ff7eb9; /* Soft bubblegum pink */
+  padding: 1rem 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  position: fixed; /* Fixed position to keep header at the top */
+  top: 0;
+  left: 0;
+  z-index: 10; /* Keep it on top */
+}
+
+/* Navbar Layout */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Logo Text */
+.nav-logo .logo-text {
+  font-family: "Lexend", sans-serif;
+  font-size: 1.8rem;
+  color: white;
+  margin: 0;
+}
+
+/* Menu List */
+.nav-menu {
+  list-style: none;
+  display: flex;
+  gap: 1.5rem;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+}
+
+/* Logo Title Styled as Button */
+/* Style the nav-logo link */
+.nav-logo {
+  font-family: "Lexend", sans-serif;
+  font-weight: 500;
+  font-size: 1rem;
+  color: white;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  transition: background-color 0.3s ease;
+}
+
+/* When hovering over the button, change background and border */
+.nav-logo:hover {
+  background-color: #ff5fa2; /* Slightly darker pink */
+}
+
+
+.logo-text {
+  font-family: "Lexend", sans-serif;
+  font-size: 1.8rem;
+  color: white;
+  margin: 0;
+}
+
+
+/* Links */
+.nav-link {
+  font-family: "Lexend", sans-serif;
+  font-weight: 500;
+  font-size: 1rem;
+  color: white;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  transition: background-color 0.3s ease;
+}
+
+.nav-link:hover {
+  background-color: #ff5fa2; /* Slightly darker pink */
+}
+
+/* Page Wrapper */
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin-top: 80px; /* Added space to account for the fixed header */
+}
+
+/* Added margin to body to avoid content being hidden under header */
+body {
+  padding-top: 80px; /* Add space for fixed header */
+}
+
+/* RECOMMEND BUTTON */
+/* Link Styled as Button */
+.recommend-btn {
+  font-family: "Lexend", sans-serif;
+  padding: 12px 24px;
+  background-color: #ff77b4; /* Soft pink background */
+  color: white;
+  border: none;
+  border-radius: 30px; /* Round background */
+  text-decoration: none; /* Remove underline */
+  text-align: center;
+  font-size: 1.1rem;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  display: inline-block; /* Make it behave like a button */
+}
+
+.recommend-btn:hover {
+  background-color: #ff56a0;
+  transform: scale(1.05);
+}
+
+/* Results */
+#result {
+  margin-top: 20px;
+  font-size: 1.2rem;
+  color: #555;
+}
+
+#gender, #age {
+  font-weight: bold;
+}
+
+/* Recognition Page */
+#recognition-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh; /* Take full height of the viewport */
+  text-align: center;
+}

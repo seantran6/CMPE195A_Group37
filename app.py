@@ -10,6 +10,9 @@ from PIL import Image
 
 app = Flask(__name__)
 
+# Enable template auto-reloading
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+
 # Load the pre-trained models
 base_dir = os.path.dirname(__file__)
 # Paths to the face, gender, and age model files
@@ -60,6 +63,7 @@ def process_image(image_data):
     img = np.array(img)
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # Convert from RGB to BGR
 
+    # Process the image to detect faces
     resultImg, faceBoxes = highlightFace(faceNet, img)
 
     gender = "Unknown"
@@ -81,21 +85,32 @@ def process_image(image_data):
 
     return resultImg, gender, age
 
+
 @app.route('/recognize', methods=['POST'])
 def recognize():
     data = request.get_json()
     image_data = data['image']
     resultImg, gender, age = process_image(image_data)
 
-    # Convert result image back to base64 for sending it to frontend
+    # Convert result image back to base64 for sending it to frontend with bounding boxes (for live feed)
     _, buffer = cv2.imencode('.jpg', resultImg)
     result_image = base64.b64encode(buffer).decode('utf-8')
 
     return jsonify({'gender': gender, 'age': age, 'image': result_image})
 
+
+
+
+
 @app.route('/recognition', methods=['GET'])
 def recognition():
     return render_template('recognition.html')
 
+@app.route('/')
+def home():
+    return render_template('index.html')  # Ensure `index.html` exists
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=True)
+
+
