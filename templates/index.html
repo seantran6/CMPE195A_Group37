@@ -11,23 +11,40 @@
     <header>
         <nav class="navbar">
             <a href="{{ url_for('home') }}" class="nav-logo">
-
-                <h1 class="logo-text">Logo goes Here</h1>
+                <h1 class="logo-text">Title</h1>
             </a>
-
             <ul class="nav-menu">
                 <li class="nav-item"><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
                 <li class="nav-item"><a href="{{ url_for('recognition') }}" class="nav-link">Recognition</a></li>
                 <li class="nav-item"><a href="#" class="nav-link">Login</a></li>
             </ul>
         </nav>
-    </header>   
+    </header>
 
     <section id="main">
-        <a href="/recognition" class="recommend-btn">Click Here to Recommend Songs</a>
+        <div class="hero">
+            <h2>Welcome to Title</h2>
+            <p>Use facial recognition to discover new music based on your age and gender!</p>
+            <a href="/recognition" class="recommend-btn">Click Here to Recommend Songs</a>
+        </div>
     </section>
 
+    <!-- Informational Section -->
+    <section id="info">
+        <div class="container">
+            <h3>What is Title?</h3>
+            <p>Title is a web application that uses facial recognition technology to analyze your age and gender to recommend personalized song suggestions.</p>
+        </div>
 
-    
-</body> 
+        <div class="container">
+            <h3>How It Works</h3>
+            <p>Simply click on the button above, capture your face using your webcam, and let our algorithm recommend the perfect songs tailored to your profile!</p>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2025 Title. All rights reserved.</p>
+    </footer>
+</body>
 </html>
+
