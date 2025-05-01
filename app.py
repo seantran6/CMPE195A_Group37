@@ -1,4 +1,4 @@
-import base64
+﻿import base64
 import cv2
 import numpy as np
 from flask import Flask, render_template, request, jsonify
@@ -7,28 +7,43 @@ import time
 import os
 from io import BytesIO
 from PIL import Image
+from recommendation import get_tracks_for_demographic
+from dotenv import load_dotenv
+load_dotenv()
+
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+
+sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
+
+print("=== DEBUG - importing app.py ===")   # replace the long dash with a normal "-"
+print("faceModel _before_ assignment =", globals().get("faceModel"))
 
 app = Flask(__name__)
-
-# Enable template auto-reloading
-app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # Load the pre-trained models
 base_dir = os.path.dirname(__file__)
 # Paths to the face, gender, and age model files
-faceProto = r"C:\Users\seann\Desktop\CMPE195A\Senior Project\CMPE195A_Group37\biometrics\opencv_face_detector.pbtxt"
-faceModel = r"C:\Users\seann\Desktop\CMPE195A\Senior Project\CMPE195A_Group37\biometrics\opencv_face_detector_uint8.pb"
+# Face-detection model files
+faceProto  = os.path.join(base_dir, "biometrics", "opencv_face_detector.pbtxt")
+faceModel  = os.path.join(base_dir, "biometrics", "opencv_face_detector_uint8.pb")
 
-genderProto = r"C:\Users\seann\Desktop\CMPE195A\Senior Project\CMPE195A_Group37\biometrics\gender_deploy.prototxt"
-genderModel = r"C:\Users\seann\Desktop\CMPE195A\Senior Project\CMPE195A_Group37\biometrics\gender_net.caffemodel"
+# Gender-detection model files
+genderProto = os.path.join(base_dir, "biometrics", "gender_deploy.prototxt")
+genderModel = os.path.join(base_dir, "biometrics", "gender_net.caffemodel")
 
-ageProto = r"C:\Users\seann\Desktop\CMPE195A\Senior Project\CMPE195A_Group37\biometrics\age_deploy.prototxt"
-ageModel = r"C:\Users\seann\Desktop\CMPE195A\Senior Project\CMPE195A_Group37\biometrics\age_net.caffemodel"
+# Age-detection model files
+ageProto  = os.path.join(base_dir, "biometrics", "age_deploy.prototxt")
+ageModel  = os.path.join(base_dir, "biometrics", "age_net.caffemodel")
 
 
 MODEL_MEAN_VALUES = (78.4263377603, 87.7689143744, 114.895847746)
 ageList = ['(0-2)', '(4-6)', '(8-12)', '(15-20)', '(25-32)', '(38-43)', '(48-53)', '(60-100)']
 genderList = ['Male', 'Female']
+
+print("DEBUG - faceModel =", faceModel)
+print("DEBUG - faceProto =", faceProto)
+print("faceModel _right before readNet =", faceModel)
 
 faceNet = cv2.dnn.readNet(faceModel, faceProto)
 ageNet = cv2.dnn.readNet(ageModel, ageProto)
@@ -63,7 +78,6 @@ def process_image(image_data):
     img = np.array(img)
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # Convert from RGB to BGR
 
-    # Process the image to detect faces
     resultImg, faceBoxes = highlightFace(faceNet, img)
 
     gender = "Unknown"
@@ -85,32 +99,36 @@ def process_image(image_data):
 
     return resultImg, gender, age
 
-
 @app.route('/recognize', methods=['POST'])
 def recognize():
     data = request.get_json()
     image_data = data['image']
     resultImg, gender, age = process_image(image_data)
 
-    # Convert result image back to base64 for sending it to frontend with bounding boxes (for live feed)
+    # Convert result image back to base64 for sending it to frontend
     _, buffer = cv2.imencode('.jpg', resultImg)
     result_image = base64.b64encode(buffer).decode('utf-8')
 
     return jsonify({'gender': gender, 'age': age, 'image': result_image})
 
-
-
-
-
 @app.route('/recognition', methods=['GET'])
 def recognition():
     return render_template('recognition.html')
 
-@app.route('/')
+@app.route('/home')
 def home():
-    return render_template('index.html')  # Ensure `index.html` exists
+    return render_template('recognition.html')   # or a separate home.html
+
+@app.route('/recommend_tracks')
+def recommend_tracks():
+    age    = request.args.get('age')
+    gender = request.args.get('gender')
+    n      = int(request.args.get('n', 3))        # ← new
+    tracks = get_tracks_for_demographic(age, gender, n=n)
+    return jsonify({'tracks': tracks})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)
+
 
 
