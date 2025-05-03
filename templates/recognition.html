@@ -1,132 +1,171 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Age and Gender Recognition (Live Feed)</title>
-  <link rel="stylesheet" href="../static/style.css" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Age & Gender Recognition</title>
 
-  <style>
-    /* In case this isn't in your style.css yet */
-    .hidden {
-      display: none;
-    }
+    <!-- main stylesheet -->
+    <link rel="stylesheet" href="../static/style.css" />
 
-    .fade-in {
-      animation: fadeIn 0.5s ease-in-out forwards;
-    }
+    <!-- page‑specific tweaks -->
+    <style>
+        /* sticky navbar already handled globally */
 
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-  </style>
+        /* uniform card */
+        .track-card {
+            width: 210px;
+            min-height: 180px;
+            margin: 0;
+            padding: 1rem 1.25rem;
+            background: #ffffff; /* same white card as capture frame */
+            border: 2px solid #ff77b4; /* soft pink border to match */
+            border-radius: 15px; /* identical rounding */
+            box-shadow: 0 6px 15px rgba(0,0,0,0.10); /* same depth as camera container */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            text-align: center;
+            transition: box-shadow .2s, transform .2s;
+        }
+
+            .track-card:hover {
+                box-shadow: 0 8px 18px rgba(0,0,0,0.16);
+                transform: translateY(-4px);
+            }
+
+            .track-card:hover {
+                box-shadow: 0 6px 14px rgba(0,0,0,.12);
+            }
+
+        /* 3‑column grid */
+        #track-list {
+            display: grid;
+            grid-template-columns: repeat(3,1fr);
+            gap: 1.5rem;
+            justify-items: center; /* center the whole grid block */
+        }
+
+        @media(max-width:800px) {
+            #track-list {
+                grid-template-columns: repeat(2,230px);
+            }
+        }
+
+        @media(max-width:500px) {
+            #track-list {
+                grid-template-columns: 230px;
+            }
+        }
+
+        .track-cover {
+            width: 96px;
+            height: 96px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .track-info a {
+            color: #0a58ff;
+            text-decoration: none;
+        }
+
+            .track-info a:hover {
+                text-decoration: underline;
+            }
+    </style>
 </head>
-
 <body>
-  <header>
-    <nav class="navbar">
-      <a href="{{ url_for('home') }}" class="nav-logo">
-        <h1 class="logo-text">Title</h1>
-      </a>
-      <ul class="nav-menu">
-        <li class="nav-item"><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
-        <li class="nav-item"><a href="{{ url_for('recognition') }}" class="nav-link">Recognition</a></li>
-        <li class="nav-item"><a href="#" class="nav-link">Login</a></li>
-      </ul>
-    </nav>
-  </header>
+    <!-- ── NAVBAR ─────────────────────────────────────────── -->
+    <header>
+        <nav class="navbar">
+            <a href="{{ url_for('home') }}" class="nav-logo"><h1 class="logo-text">Title</h1></a>
+            <ul class="nav-menu">
+                <li class="nav-item"><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
+                <li class="nav-item"><a href="{{ url_for('recognition') }}" class="nav-link">Recognition</a></li>
+                <li class="nav-item"><a href="#" class="nav-link">Login</a></li>
+            </ul>
+        </nav>
+    </header>
 
-  <div class="container">
-    <!-- Webcam feed -->
-    <div class="video-container">
-      <video id="webcam" autoplay playsinline width="640" height="480"></video>
+    <!-- ── CAMERA + RESULTS ─────────────────────────────── -->
+    <div class="container">
+        <div class="video-container"><video id="webcam" autoplay playsinline width="640" height="480"></video></div>
+        <button id="capture-btn">Capture Frame</button>
+        <div id="result"><p id="gender">Gender: </p><p id="age">Age: </p></div>
     </div>
 
-    <!-- Button -->
-    <button id="capture-btn">Capture Frame</button>
-
-    <!-- Results -->
-    <div id="result">
-      <p id="gender">Gender: </p>
-      <p id="age">Age: </p>
+    <!-- ── RECOMMENDATIONS ─────────────────────────────── -->
+    <div id="recommendations" class="hidden" style="margin:150px auto 50px;text-align:center;min-height:600px;max-width:760px">
+        <h2>Recommended Songs</h2>
+        <div id="track-list"></div>
     </div>
-  </div>
 
-  <!-- Recommendation section -->
-  <div id="recommendations" class="hidden" style="margin: 150px auto 50px; text-align: center; min-height: 600px;">
+    <!-- ── JS ───────────────────────────────────────────── -->
+    <script>
+        const video = document.getElementById('webcam');
+        const captureBtn = document.getElementById('capture-btn');
+        const genderOut = document.getElementById('gender');
+        const ageOut = document.getElementById('age');
 
-    <h2>Recommended Songs</h2>
-    <p>Recommendations will go here...</p>
-  </div>
+        async function startWebcam() {
+            try { video.srcObject = await navigator.mediaDevices.getUserMedia({ video: true }); }
+            catch (e) { alert('Webcam error'); console.error(e); }
+        }
 
-  <!-- Script -->
-  <script>
-    const video = document.getElementById('webcam');
-    const captureBtn = document.getElementById('capture-btn');
-    const genderOutput = document.getElementById('gender');
-    const ageOutput = document.getElementById('age');
+        async function captureFrame() {
+            const c = document.createElement('canvas');
+            c.width = video.videoWidth; c.height = video.videoHeight;
+            c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+            const img = c.toDataURL('image/jpeg');
+            try {
+                const r = await fetch('/recognize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: img }) });
+                const data = await r.json();
+                genderOut.textContent = `Gender: ${data.gender}`;
+                ageOut.textContent = `Age: ${data.age}`;
 
-    async function startWebcam() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = stream;
-        console.log('Webcam is running');
-      } catch (error) {
-        console.error('Error accessing webcam:', error);
-        alert('Error accessing webcam. Please check your device settings.');
-      }
-    }
+                const sec = document.getElementById('recommendations');
+                sec.classList.remove('hidden'); sec.classList.add('fade-in');
+                sec.scrollIntoView({ behavior: 'smooth' });
 
-    async function captureFrame() {
-      console.log('Capture frame button clicked');
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+                fetch(`/recommend_tracks?age=${encodeURIComponent(data.age)}&gender=${encodeURIComponent(data.gender)}&n=6`)
+                    .then(r => r.json()).then(d => renderTracks(shuffle(d.tracks)))
+                    .catch(err => console.error('track fetch', err));
+            } catch (e) { console.error(e); }
+        }
 
-      const context = canvas.getContext('2d');
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const shuffle = arr => arr.sort(() => Math.random() - 0.5);
 
-      const imageData = canvas.toDataURL('image/jpeg');
+        function renderTracks(tracks) {
+            const list = document.getElementById('track-list'); list.innerHTML = '';
+            if (!tracks || !tracks.length) { list.textContent = 'No tracks'; return; }
 
-      try {
-        const response = await fetch('/recognize', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: imageData })
-        });
+            tracks.slice(0, 6).forEach(t => {
+                const card = document.createElement('div'); card.className = 'track-card';
 
-        const result = await response.json();
-        console.log('Received response from server:', result);
+                const img = document.createElement('img'); img.className = 'track-cover';
+                img.src = t.image || 'https://via.placeholder.com/56?text=♪';
+                card.appendChild(img);
 
-        genderOutput.textContent = `Gender: ${result.gender}`;
-        ageOutput.textContent = `Age: ${result.age}`;
+                const info = document.createElement('div'); info.className = 'track-info';
+                info.innerHTML = `<a href="${t.track_url}" target="_blank">${t.name}</a><br><small>${t.artists}</small>`;
+                card.appendChild(info);
 
-        // Reveal the recommendations section
-        const recommendationsSection = document.getElementById('recommendations');
-        recommendationsSection.classList.remove('hidden');
-        recommendationsSection.classList.add('fade-in');
+                if (t.preview_url) {
+                    const audio = document.createElement('audio'); audio.controls = true; audio.src = t.preview_url;
+                    card.appendChild(audio);
+                }
+                list.appendChild(card);
+            });
+        }
 
-        // Smooth scroll to the recommendations section
-        recommendationsSection.scrollIntoView({ behavior: 'smooth' });
-
-      } catch (error) {
-        console.error('Error sending frame to server:', error);
-      }
-    }
-
-    captureBtn.addEventListener('click', captureFrame);
-
-    // Start webcam on load
-    startWebcam();
-  </script>
+        captureBtn.addEventListener('click', captureFrame);
+        startWebcam();
+    </script>
 </body>
 </html>
+
 
 
