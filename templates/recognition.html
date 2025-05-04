@@ -3,25 +3,25 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Age & Gender Recognition</title>
+    <title>Age & Gender Recognition</title>
 
     <!-- main stylesheet -->
     <link rel="stylesheet" href="../static/style.css" />
 
-    <!-- page‑specific tweaks -->
+    <!-- page-specific tweaks -->
     <style>
-        /* sticky navbar already handled globally */
-
-        /* uniform card */
+        /* Styling for track recommendations, already provided by you */
+        /* Sticky navbar already handled globally */
+        /* Uniform card */
         .track-card {
             width: 210px;
             min-height: 180px;
             margin: 0;
             padding: 1rem 1.25rem;
-            background: #ffffff; /* same white card as capture frame */
-            border: 2px solid #ff77b4; /* soft pink border to match */
-            border-radius: 15px; /* identical rounding */
-            box-shadow: 0 6px 15px rgba(0,0,0,0.10); /* same depth as camera container */
+            background: #ffffff;
+            border: 2px solid #ff77b4;
+            border-radius: 15px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.10);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -31,21 +31,17 @@
             transition: box-shadow .2s, transform .2s;
         }
 
-            .track-card:hover {
-                box-shadow: 0 8px 18px rgba(0,0,0,0.16);
-                transform: translateY(-4px);
-            }
+        .track-card:hover {
+            box-shadow: 0 8px 18px rgba(0,0,0,0.16);
+            transform: translateY(-4px);
+        }
 
-            .track-card:hover {
-                box-shadow: 0 6px 14px rgba(0,0,0,.12);
-            }
-
-        /* 3‑column grid */
+        /* 3-column grid */
         #track-list {
             display: grid;
-            grid-template-columns: repeat(3,1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 1.5rem;
-            justify-items: center; /* center the whole grid block */
+            justify-items: center;
         }
 
         @media(max-width:800px) {
@@ -72,13 +68,13 @@
             text-decoration: none;
         }
 
-            .track-info a:hover {
-                text-decoration: underline;
-            }
+        .track-info a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
-    <!-- ── NAVBAR ─────────────────────────────────────────── -->
+    <!-- NAVBAR -->
     <header>
         <nav class="navbar">
             <a href="{{ url_for('home') }}" class="nav-logo"><h1 class="logo-text">Title</h1></a>
@@ -90,71 +86,105 @@
         </nav>
     </header>
 
-    <!-- ── CAMERA + RESULTS ─────────────────────────────── -->
+    <!-- CAMERA + RESULTS -->
     <div class="container">
         <div class="video-container"><video id="webcam" autoplay playsinline width="640" height="480"></video></div>
+        
+        <!-- Dropdown to select the facial recognition model -->
+        <label for="model-select">Select Recognition Model:</label>
+        <select id="model-select">
+            <option value="adience">Adience</option>
+            <option value="wikiset">WikiSet</option>
+        </select>
+
         <button id="capture-btn">Capture Frame</button>
-        <div id="result"><p id="gender">Gender: </p><p id="age">Age: </p></div>
+        <div id="result">
+            <p id="gender">Gender: </p>
+            <p id="age">Age: </p>
+        </div>
     </div>
 
-    <!-- ── RECOMMENDATIONS ─────────────────────────────── -->
+    <!-- RECOMMENDATIONS -->
     <div id="recommendations" class="hidden" style="margin:150px auto 50px;text-align:center;min-height:600px;max-width:760px">
-        <h2>Recommended Songs</h2>
+        <h2>Recommended Songs</h2>
         <div id="track-list"></div>
     </div>
 
-    <!-- ── JS ───────────────────────────────────────────── -->
+    <!-- JS -->
     <script>
         const video = document.getElementById('webcam');
         const captureBtn = document.getElementById('capture-btn');
         const genderOut = document.getElementById('gender');
         const ageOut = document.getElementById('age');
+        const modelSelect = document.getElementById('model-select');  // New dropdown element
 
+        // Start webcam
         async function startWebcam() {
             try { video.srcObject = await navigator.mediaDevices.getUserMedia({ video: true }); }
             catch (e) { alert('Webcam error'); console.error(e); }
         }
 
+        // Capture frame and send to server
         async function captureFrame() {
             const c = document.createElement('canvas');
             c.width = video.videoWidth; c.height = video.videoHeight;
             c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
             const img = c.toDataURL('image/jpeg');
+            
+            // Get the selected model from dropdown
+            const selectedModel = modelSelect.value;
+
             try {
-                const r = await fetch('/recognize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: img }) });
+                const r = await fetch('/recognize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: img, model: selectedModel })  // Send selected model to backend
+                });
                 const data = await r.json();
                 genderOut.textContent = `Gender: ${data.gender}`;
                 ageOut.textContent = `Age: ${data.age}`;
 
+                // Show recommendations section
                 const sec = document.getElementById('recommendations');
-                sec.classList.remove('hidden'); sec.classList.add('fade-in');
+                sec.classList.remove('hidden');
                 sec.scrollIntoView({ behavior: 'smooth' });
 
+                // Fetch tracks based on the predicted age and gender
                 fetch(`/recommend_tracks?age=${encodeURIComponent(data.age)}&gender=${encodeURIComponent(data.gender)}&n=6`)
-                    .then(r => r.json()).then(d => renderTracks(shuffle(d.tracks)))
+                    .then(r => r.json())
+                    .then(d => renderTracks(shuffle(d.tracks)))
                     .catch(err => console.error('track fetch', err));
+
             } catch (e) { console.error(e); }
         }
 
+        // Shuffle tracks
         const shuffle = arr => arr.sort(() => Math.random() - 0.5);
 
+        // Render tracks in the recommendations section
         function renderTracks(tracks) {
-            const list = document.getElementById('track-list'); list.innerHTML = '';
+            const list = document.getElementById('track-list');
+            list.innerHTML = '';
             if (!tracks || !tracks.length) { list.textContent = 'No tracks'; return; }
 
             tracks.slice(0, 6).forEach(t => {
-                const card = document.createElement('div'); card.className = 'track-card';
+                const card = document.createElement('div');
+                card.className = 'track-card';
 
-                const img = document.createElement('img'); img.className = 'track-cover';
+                const img = document.createElement('img');
+                img.className = 'track-cover';
                 img.src = t.image || 'https://via.placeholder.com/56?text=♪';
                 card.appendChild(img);
 
-                const info = document.createElement('div'); info.className = 'track-info';
+                const info = document.createElement('div');
+                info.className = 'track-info';
                 info.innerHTML = `<a href="${t.track_url}" target="_blank">${t.name}</a><br><small>${t.artists}</small>`;
                 card.appendChild(info);
 
                 if (t.preview_url) {
-                    const audio = document.createElement('audio'); audio.controls = true; audio.src = t.preview_url;
+                    const audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = t.preview_url;
                     card.appendChild(audio);
                 }
                 list.appendChild(card);
@@ -166,6 +196,3 @@
     </script>
 </body>
 </html>
-
-
-
