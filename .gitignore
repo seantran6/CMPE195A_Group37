@@ -1,2 +1,4 @@
 .env
 biometrics/wiki/
+biometrics/checkpoint.pth
+
