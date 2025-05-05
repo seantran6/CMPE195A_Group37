@@ -120,14 +120,27 @@
 
         // Start webcam
         async function startWebcam() {
-            try { video.srcObject = await navigator.mediaDevices.getUserMedia({ video: true }); }
-            catch (e) { alert('Webcam error'); console.error(e); }
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+
+        // Check if the webcam stream is available
+        if (!stream) {
+            throw new Error('Webcam stream unavailable');
         }
+    } catch (e) {
+        // Display a more user-friendly error message
+        alert('Could not access the webcam. Please check your camera settings or try again later.');
+        console.error('Webcam access error:', e);
+    }
+}
+
 
         // Capture frame and send to server
         async function captureFrame() {
             const c = document.createElement('canvas');
-            c.width = video.videoWidth; c.height = video.videoHeight;
+            c.width = video.videoWidth;
+            c.height = video.videoHeight;
             c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
             const img = c.toDataURL('image/jpeg');
             

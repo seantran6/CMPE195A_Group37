@@ -65,8 +65,9 @@ dataloader = create_dataloader(image_paths, age_labels, gender_labels)
 
 # ----- Load Models -----
 def initialize_models():
-    gender_model = models.resnet18(pretrained=True)
-    age_model = models.resnet18(pretrained=True)
+    # Option 2: Switching from ResNet-18 to ResNet-34 for improved performance
+    gender_model = models.resnet34(weights="IMAGENET1K_V1")  # Change ResNet-18 to ResNet-34
+    age_model = models.resnet34(weights="IMAGENET1K_V1")  # Change ResNet-18 to ResNet-34
     gender_model.fc = nn.Linear(gender_model.fc.in_features, 2)  # 2 classes for gender
     age_model.fc = nn.Linear(age_model.fc.in_features, 8)  # 8 classes for age groups
     return gender_model, age_model
@@ -85,18 +86,45 @@ def save_checkpoint(epoch, gender_model, age_model, optimizer_gender, optimizer_
     }, filename)
     print(f"[INFO] Saved checkpoint at epoch {epoch}")
 
+# ----- Checkpoint Functions -----
 def load_checkpoint(gender_model, age_model, optimizer_gender, optimizer_age, filename='checkpoint.pth'):
     if os.path.exists(filename):
         checkpoint = torch.load(filename, map_location=device)
-        gender_model.load_state_dict(checkpoint['gender_model_state'])
-        age_model.load_state_dict(checkpoint['age_model_state'])
-        optimizer_gender.load_state_dict(checkpoint['optimizer_gender_state'])
-        optimizer_age.load_state_dict(checkpoint['optimizer_age_state'])
+        
+        try:
+            # Load gender model weights with strict=False to ignore missing keys
+            gender_model.load_state_dict(checkpoint['gender_model_state'], strict=False)
+            
+            # Load age model weights with strict=False to ignore missing keys
+            age_model.load_state_dict(checkpoint['age_model_state'], strict=False)
+            
+            print(f"[INFO] Loaded models' state_dict with possible missing keys.")
+        except Exception as e:
+            print(f"[ERROR] Error loading model state_dict: {e}")
+
+        # Safely load the optimizer state or reinitialize if it doesn't match
+        try:
+            optimizer_gender.load_state_dict(checkpoint['optimizer_gender_state'])
+            optimizer_age.load_state_dict(checkpoint['optimizer_age_state'])
+        except KeyError as e:
+            print(f"[INFO] Skipping optimizer state loading due to error: {e}")
+            # Reinitialize optimizers if the optimizer state is not in the checkpoint
+            optimizer_gender = optim.Adam(gender_model.parameters(), lr=0.001)
+            optimizer_age = optim.Adam(age_model.parameters(), lr=0.001)
+        except ValueError as e:
+            print(f"[INFO] Optimizer state mismatch: {e}")
+            print("[INFO] Reinitializing optimizers...")
+            # Reinitialize optimizers in case of mismatch
+            optimizer_gender = optim.Adam(gender_model.parameters(), lr=0.001)
+            optimizer_age = optim.Adam(age_model.parameters(), lr=0.001)
+
         print(f"[INFO] Loaded checkpoint from epoch {checkpoint['epoch']}")
-        return checkpoint['epoch']
+        return checkpoint['epoch'], optimizer_gender, optimizer_age
     else:
         print("[INFO] No checkpoint found, starting from scratch.")
-        return 0
+        return 0, optimizer_gender, optimizer_age
+
+
 
 # ----- Training Function -----
 def train_model(num_epochs=10, checkpoint_path='checkpoint.pth', resume=True):
@@ -109,9 +137,13 @@ def train_model(num_epochs=10, checkpoint_path='checkpoint.pth', resume=True):
     optimizer_gender = optim.Adam(gender_model.parameters(), lr=0.001)
     optimizer_age = optim.Adam(age_model.parameters(), lr=0.001)
 
+    # Option 2: Implementing a learning rate scheduler
+    scheduler_gender = optim.lr_scheduler.StepLR(optimizer_gender, step_size=7, gamma=0.1)
+    scheduler_age = optim.lr_scheduler.StepLR(optimizer_age, step_size=7, gamma=0.1)
+
     start_epoch = 0
     if resume:
-        start_epoch = load_checkpoint(gender_model, age_model, optimizer_gender, optimizer_age, checkpoint_path)
+        start_epoch, optimizer_gender, optimizer_age = load_checkpoint(gender_model, age_model, optimizer_gender, optimizer_age, checkpoint_path)
 
     print(f"[INFO] Starting training from epoch {start_epoch + 1}/{num_epochs}")
 
@@ -122,6 +154,9 @@ def train_model(num_epochs=10, checkpoint_path='checkpoint.pth', resume=True):
 
             running_loss_gender = 0.0
             running_loss_age = 0.0
+            correct_gender = 0
+            correct_age = 0
+            total = 0
 
             progress_bar = tqdm(enumerate(dataloader), total=len(dataloader), desc=f"Epoch {epoch + 1}/{num_epochs}")
             progress_bar.set_postfix({'Gender Loss': 'N/A', 'Age Loss': 'N/A'})
@@ -145,6 +180,13 @@ def train_model(num_epochs=10, checkpoint_path='checkpoint.pth', resume=True):
                 loss_age.backward()
                 optimizer_age.step()
 
+                # Track accuracy
+                _, predicted_gender = torch.max(outputs_gender, 1)
+                _, predicted_age = torch.max(outputs_age, 1)
+                correct_gender += (predicted_gender == gender_targets).sum().item()
+                correct_age += (predicted_age == age_targets).sum().item()
+                total += gender_targets.size(0)
+
                 running_loss_gender += loss_gender.item()
                 running_loss_age += loss_age.item()
 
@@ -154,6 +196,15 @@ def train_model(num_epochs=10, checkpoint_path='checkpoint.pth', resume=True):
                         'Age Loss': f"{running_loss_age / (i+1):.4f}"
                     })
 
+            # Scheduler step
+            scheduler_gender.step()
+            scheduler_age.step()
+
+            # Print accuracy at the end of the epoch
+            gender_accuracy = 100 * correct_gender / total
+            age_accuracy = 100 * correct_age / total
+            print(f"[INFO] Epoch {epoch+1}: Gender Accuracy: {gender_accuracy:.2f}%, Age Accuracy: {age_accuracy:.2f}%")
+            
             save_checkpoint(epoch + 1, gender_model, age_model, optimizer_gender, optimizer_age, checkpoint_path)
 
         print("[INFO] Training completed.")
