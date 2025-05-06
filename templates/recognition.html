@@ -1,168 +1,201 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Age & Gender Recognition</title>
-
-    <!-- main stylesheet -->
-    <link rel="stylesheet" href="../static/style.css" />
-
-    <!-- page‑specific tweaks -->
-    <style>
-        /* sticky navbar already handled globally */
-
-        /* uniform card */
-        .track-card {
-            width: 210px;
-            min-height: 180px;
-            margin: 0;
-            padding: 1rem 1.25rem;
-            background: #ffffff; /* same white card as capture frame */
-            border: 2px solid #ff77b4; /* soft pink border to match */
-            border-radius: 15px; /* identical rounding */
-            box-shadow: 0 6px 15px rgba(0,0,0,0.10); /* same depth as camera container */
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            text-align: center;
-            transition: box-shadow .2s, transform .2s;
-        }
-
-            .track-card:hover {
-                box-shadow: 0 8px 18px rgba(0,0,0,0.16);
-                transform: translateY(-4px);
-            }
-
-            .track-card:hover {
-                box-shadow: 0 6px 14px rgba(0,0,0,.12);
-            }
-
-        /* 3‑column grid */
-        #track-list {
-            display: grid;
-            grid-template-columns: repeat(3,1fr);
-            gap: 1.5rem;
-            justify-items: center; /* center the whole grid block */
-        }
-
-        @media(max-width:800px) {
-            #track-list {
-                grid-template-columns: repeat(2,230px);
-            }
-        }
-
-        @media(max-width:500px) {
-            #track-list {
-                grid-template-columns: 230px;
-            }
-        }
-
-        .track-cover {
-            width: 96px;
-            height: 96px;
-            border-radius: 8px;
-            object-fit: cover;
-        }
-
-        .track-info a {
-            color: #0a58ff;
-            text-decoration: none;
-        }
-
-            .track-info a:hover {
-                text-decoration: underline;
-            }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facial.ly - Music Recommendations Based on Your Expression</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Add Inter font from Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Include Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
-    <!-- ── NAVBAR ─────────────────────────────────────────── -->
-    <header>
-        <nav class="navbar">
-            <a href="{{ url_for('home') }}" class="nav-logo"><h1 class="logo-text">Title</h1></a>
-            <ul class="nav-menu">
-                <li class="nav-item"><a href="{{ url_for('home') }}" class="nav-link">Home</a></li>
-                <li class="nav-item"><a href="{{ url_for('recognition') }}" class="nav-link">Recognition</a></li>
-                <li class="nav-item"><a href="#" class="nav-link">Login</a></li>
-            </ul>
-        </nav>
-    </header>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="container header-container">
+                <div class="logo-container">
+                    <div class="logo-icon">
+                        <i data-lucide="music" class="icon-primary animate-float"></i>
+                        <span class="pulse-dot"></span>
+                    </div>
+                    <h1 class="logo-text">Facial.ly</h1>
+                </div>
+                <nav class="main-nav">
+                    <a href="{{ url_for('home') }}" class="nav-link">Home</a>
+                    <a href="{{ url_for('recognition') }}" class="nav-link">Recognition</a>
+                    <a href="#" class="nav-link">Login</a>
+                </nav>
+                <div class="header-actions">
+                    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+                        <i data-lucide="sun" class="icon-sun"></i>
+                        <i data-lucide="moon" class="icon-moon"></i>
+                    </button>
+                    <button class="menu-button" aria-label="Menu">
+                        <i data-lucide="menu" class="icon-menu"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
 
-    <!-- ── CAMERA + RESULTS ─────────────────────────────── -->
-    <div class="container">
-        <div class="video-container"><video id="webcam" autoplay playsinline width="640" height="480"></video></div>
-        <button id="capture-btn">Capture Frame</button>
-        <div id="result"><p id="gender">Gender: </p><p id="age">Age: </p></div>
+        <!-- Main Content -->
+        <main class="container main-content">
+            <div class="two-column-grid">
+                <!-- Left Column: Webcam and Analysis -->
+                <div class="left-column">
+                    <!-- Webcam Card -->
+                    <div class="card gradient-border">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i data-lucide="camera" class="icon-primary animate-pulse"></i>
+                                <span class="gradient-text">Webcam Capture</span>
+                            </div>
+                        </div>
+                        <div class="card-content webcam-container">
+                            <div id="webcam-placeholder" class="webcam-placeholder">
+                                <div class="webcam-icon-container">
+                                    <i data-lucide="camera" class="webcam-icon"></i>
+                                    <i data-lucide="sparkles" class="sparkle-icon"></i>
+                                </div>
+                                <p>Click the button below to start your webcam</p>
+                            </div>
+                            <video id="webcam" class="webcam-video" autoplay playsinline muted></video>
+                            <img id="captured-image" class="captured-image" alt="Captured frame" style="display: none;">
+                            <canvas id="canvas" style="display: none;"></canvas>
+
+                            <div id="analyzing-overlay" class="analyzing-overlay" style="display: none;">
+                                <div class="analyzing-icon-container">
+                                    <i data-lucide="sparkles" class="analyzing-icon"></i>
+                                    <i data-lucide="zap" class="zap-icon"></i>
+                                </div>
+                                <h3 class="analyzing-title gradient-text">Analyzing Your Mood</h3>
+                                <div class="progress-container">
+                                    <div id="progress-bar" class="progress-bar"></div>
+                                </div>
+                                <p class="analyzing-text">Finding the perfect songs for you...</p>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <button id="capture-btn" class="button button-primary button-full">
+                                <span class="button-gradient-bg"></span>
+                                Start Webcam
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Analysis Results Card (initially hidden) -->
+                    <div id="analysis-results" class="card gradient-border" style="display: none;">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i data-lucide="sparkles" class="icon-secondary"></i>
+                                <span class="gradient-text-secondary">Analysis Results</span>
+                            </div>
+                        </div>
+                        <div class="card-content analysis-grid">
+                            <div class="analysis-item" data-animation="slide-right">
+                                <p class="analysis-label">Gender</p>
+                                <div id="gender" class="badge badge-outline badge-primary">
+                                    Analyzing...
+                                </div>
+                            </div>
+                            <div class="analysis-item" data-animation="slide-left">
+                                <p class="analysis-label">Age Range</p>
+                                <div id="age" class="badge badge-outline badge-secondary">
+                                    Analyzing...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Song Recommendations -->
+                <div class="right-column">
+                    <div id="recommendations" class="card gradient-border full-height" style="display: none;">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i data-lucide="disc-2" class="icon-accent animate-spin-slow"></i>
+                                <span class="gradient-text-accent">Recommended Songs</span>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <div class="tabs-container">
+                                <div class="tabs-header">
+                                    <p class="mood-text">
+                                        <i data-lucide="heart" class="heart-icon"></i>
+                                        Based on your mood
+                                    </p>
+                                    <div class="tabs-list gradient-border">
+                                        <button class="tab-trigger active" data-tab="grid">Grid</button>
+                                        <button class="tab-trigger" data-tab="list">List</button>
+                                    </div>
+                                </div>
+
+                                <div class="tab-content active" id="grid-view">
+                                    <div class="songs-grid" id="songs-grid">
+                                        <!-- Song cards will be inserted here by JavaScript -->
+                                    </div>
+                                </div>
+
+                                <div class="tab-content" id="list-view">
+                                    <div class="songs-list" id="songs-list">
+                                        <!-- Song list items will be inserted here by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
-    <!-- ── RECOMMENDATIONS ─────────────────────────────── -->
-    <div id="recommendations" class="hidden" style="margin:150px auto 50px;text-align:center;min-height:600px;max-width:760px">
-        <h2>Recommended Songs</h2>
-        <div id="track-list"></div>
-    </div>
+    <!-- Templates for JavaScript to clone -->
+    <template id="song-card-template">
+        <div class="song-card gradient-border">
+            <div class="song-image-container">
+                <img class="song-image" src="/placeholder.svg" alt="">
+                <div class="song-overlay">
+                    <button class="play-button">
+                        <i data-lucide="play" class="play-icon"></i>
+                    </button>
+                    <button class="like-button">
+                        <i data-lucide="heart" class="heart-icon"></i>
+                    </button>
+                    <div class="playback-bar">
+                        <i data-lucide="volume-2" class="volume-icon"></i>
+                        <div class="progress-track">
+                            <div class="progress-indicator"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="song-info">
+                <p class="song-title"></p>
+                <p class="song-artist"></p>
+            </div>
+        </div>
+    </template>
 
-    <!-- ── JS ───────────────────────────────────────────── -->
+    <template id="song-list-item-template">
+        <div class="song-list-item gradient-border">
+            <div class="song-list-avatar">
+                <img class="song-list-image" src="/placeholder.svg" alt="">
+            </div>
+            <div class="song-list-info">
+                <p class="song-list-title"></p>
+                <p class="song-list-artist"></p>
+            </div>
+            <button class="song-list-play">
+                <i data-lucide="play" class="play-icon"></i>
+            </button>
+        </div>
+    </template>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
     <script>
-        const video = document.getElementById('webcam');
-        const captureBtn = document.getElementById('capture-btn');
-        const genderOut = document.getElementById('gender');
-        const ageOut = document.getElementById('age');
-
-        async function startWebcam() {
-            try { video.srcObject = await navigator.mediaDevices.getUserMedia({ video: true }); }
-            catch (e) { alert('Webcam error'); console.error(e); }
-        }
-
-        async function captureFrame() {
-            const c = document.createElement('canvas');
-            c.width = video.videoWidth; c.height = video.videoHeight;
-            c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
-            const img = c.toDataURL('image/jpeg');
-            try {
-                const r = await fetch('/recognize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: img }) });
-                const data = await r.json();
-                genderOut.textContent = `Gender: ${data.gender}`;
-                ageOut.textContent = `Age: ${data.age}`;
-
-                const sec = document.getElementById('recommendations');
-                sec.classList.remove('hidden'); sec.classList.add('fade-in');
-                sec.scrollIntoView({ behavior: 'smooth' });
-
-                fetch(`/recommend_tracks?age=${encodeURIComponent(data.age)}&gender=${encodeURIComponent(data.gender)}&n=6`)
-                    .then(r => r.json()).then(d => renderTracks(shuffle(d.tracks)))
-                    .catch(err => console.error('track fetch', err));
-            } catch (e) { console.error(e); }
-        }
-
-        const shuffle = arr => arr.sort(() => Math.random() - 0.5);
-
-        function renderTracks(tracks) {
-            const list = document.getElementById('track-list'); list.innerHTML = '';
-            if (!tracks || !tracks.length) { list.textContent = 'No tracks'; return; }
-
-            tracks.slice(0, 6).forEach(t => {
-                const card = document.createElement('div'); card.className = 'track-card';
-
-                const img = document.createElement('img'); img.className = 'track-cover';
-                img.src = t.image || 'https://via.placeholder.com/56?text=♪';
-                card.appendChild(img);
-
-                const info = document.createElement('div'); info.className = 'track-info';
-                info.innerHTML = `<a href="${t.track_url}" target="_blank">${t.name}</a><br><small>${t.artists}</small>`;
-                card.appendChild(info);
-
-                if (t.preview_url) {
-                    const audio = document.createElement('audio'); audio.controls = true; audio.src = t.preview_url;
-                    card.appendChild(audio);
-                }
-                list.appendChild(card);
-            });
-        }
-
-        captureBtn.addEventListener('click', captureFrame);
-        startWebcam();
+        // Initialize Lucide icons
+        lucide.createIcons();
     </script>
 </body>
 </html>
