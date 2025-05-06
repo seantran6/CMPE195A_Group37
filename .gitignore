@@ -1,4 +1,5 @@
 .env
 biometrics/wiki/
 biometrics/checkpoint.pth
-
+biometrics/age_model_final.pth
+biometrics/gender_model_final.pth
