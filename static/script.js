@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const tabTriggers = document.querySelectorAll('.tab-trigger');
     const tabContents = document.querySelectorAll('.tab-content');
     const themeToggle = document.getElementById('theme-toggle');
+    const menuButton = document.querySelector('.menu-button');
+    const mainNav = document.querySelector('.main-nav');
 
     // State
     let stream = null;
@@ -44,6 +46,61 @@ document.addEventListener('DOMContentLoaded', function () {
             localStorage.setItem('theme', 'dark');
         }
     });
+
+    // Mobile menu handling
+    if (menuButton && mainNav) {
+        menuButton.addEventListener('click', function () {
+            if (mainNav.style.display === 'flex') {
+                mainNav.style.display = 'none';
+                mainNav.style.opacity = '0';
+                mainNav.style.transform = 'translateY(-10px)';
+            } else {
+                mainNav.style.display = 'flex';
+                mainNav.style.flexDirection = 'column';
+                mainNav.style.position = 'absolute';
+                mainNav.style.top = '4rem';
+                mainNav.style.right = '1rem';
+                mainNav.style.backgroundColor = 'var(--background)';
+                mainNav.style.padding = '1rem';
+                mainNav.style.borderRadius = 'var(--radius)';
+                mainNav.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1)';
+                mainNav.style.zIndex = '50';
+                mainNav.style.opacity = '0';
+                mainNav.style.transform = 'translateY(-10px)';
+                mainNav.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+
+                // Animate in
+                setTimeout(() => {
+                    mainNav.style.opacity = '1';
+                    mainNav.style.transform = 'translateY(0)';
+                }, 10);
+            }
+        });
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function (event) {
+            if (mainNav.style.display === 'flex' &&
+                !mainNav.contains(event.target) &&
+                !menuButton.contains(event.target)) {
+                mainNav.style.display = 'none';
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function () {
+            if (window.innerWidth >= 768) {
+                mainNav.style.display = 'flex';
+                mainNav.style.position = 'static';
+                mainNav.style.flexDirection = 'row';
+                mainNav.style.padding = '0';
+                mainNav.style.boxShadow = 'none';
+                mainNav.style.opacity = '1';
+                mainNav.style.transform = 'none';
+            } else if (!menuButton.contains(event.target)) {
+                mainNav.style.display = 'none';
+            }
+        });
+    }
 
     // Tab handling
     tabTriggers.forEach(trigger => {
@@ -256,14 +313,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Set song data
             const image = card.querySelector('.song-image');
-            image.src = track.image || 'https://via.placeholder.com/300?text=No+Image';
-            image.alt = track.name;
+            image.src = track.image || track.cover || 'https://via.placeholder.com/300?text=No+Image';
+            image.alt = track.name || track.title;
 
-            card.querySelector('.song-title').textContent = track.name;
-            card.querySelector('.song-artist').textContent = track.artists;
+            card.querySelector('.song-title').textContent = track.name || track.title;
+            card.querySelector('.song-artist').textContent = track.artists || track.artist;
+
+            // Add data attribute for track ID
+            const songCard = card.querySelector('.song-card');
+            songCard.setAttribute('data-track-id', track.id);
 
             // Add event listeners
             const playButton = card.querySelector('.play-button');
+            playButton.setAttribute('data-track-id', track.id);
             playButton.addEventListener('click', (e) => {
                 e.stopPropagation();
                 togglePlaySong(track);
@@ -275,10 +337,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 toggleLikeSong(likeButton);
             });
 
+            // Add progress indicator data attribute
+            const progressIndicator = card.querySelector('.progress-indicator');
+            progressIndicator.setAttribute('data-track-id', track.id);
+
             // Make whole card clickable to open Spotify link
-            const songCard = card.querySelector('.song-card');
             songCard.addEventListener('click', () => {
-                window.open(track.track_url, '_blank');
+                window.open(track.track_url || '#', '_blank');
             });
 
             // Add with delay for animation
@@ -293,23 +358,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Set song data
             const image = listItem.querySelector('.song-list-image');
-            image.src = track.image || 'https://via.placeholder.com/300?text=No+Image';
-            image.alt = track.name;
+            image.src = track.image || track.cover || 'https://via.placeholder.com/300?text=No+Image';
+            image.alt = track.name || track.title;
 
-            listItem.querySelector('.song-list-title').textContent = track.name;
-            listItem.querySelector('.song-list-artist').textContent = track.artists;
+            listItem.querySelector('.song-list-title').textContent = track.name || track.title;
+            listItem.querySelector('.song-list-artist').textContent = track.artists || track.artist;
+
+            // Add data attribute for track ID
+            const songListItem = listItem.querySelector('.song-list-item');
+            songListItem.setAttribute('data-track-id', track.id);
 
             // Add event listeners
             const playButton = listItem.querySelector('.song-list-play');
+            playButton.setAttribute('data-track-id', track.id);
             playButton.addEventListener('click', (e) => {
                 e.stopPropagation();
                 togglePlaySong(track);
             });
 
             // Make whole item clickable to open Spotify link
-            const songListItem = listItem.querySelector('.song-list-item');
             songListItem.addEventListener('click', () => {
-                window.open(track.track_url, '_blank');
+                window.open(track.track_url || '#', '_blank');
             });
 
             // Add with delay for animation
@@ -412,7 +481,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         } else {
             // No preview URL available
-            window.open(track.track_url, '_blank');
+            window.open(track.track_url || '#', '_blank');
         }
     }
 
@@ -435,4 +504,60 @@ document.addEventListener('DOMContentLoaded', function () {
             indicator.setAttribute('data-track-id', trackId);
         });
     }
+
+    // Handle keyboard navigation
+    document.addEventListener('keydown', function (e) {
+        // Escape key closes mobile menu
+        if (e.key === 'Escape' && mainNav && mainNav.style.display === 'flex' && window.innerWidth < 768) {
+            mainNav.style.display = 'none';
+        }
+
+        // Space bar toggles play/pause when a song is focused
+        if (e.key === ' ' && document.activeElement.classList.contains('play-button')) {
+            e.preventDefault();
+            document.activeElement.click();
+        }
+    });
+
+    // Add accessibility improvements
+    function improveAccessibility() {
+        // Add aria-labels to buttons without text
+        document.querySelectorAll('button:not([aria-label])').forEach(button => {
+            if (!button.textContent.trim()) {
+                const icon = button.querySelector('[data-lucide]');
+                if (icon) {
+                    const iconName = icon.getAttribute('data-lucide');
+                    button.setAttribute('aria-label', iconName.replace(/-/g, ' '));
+                }
+            }
+        });
+
+        // Make sure all interactive elements are keyboard focusable
+        document.querySelectorAll('.song-card, .song-list-item').forEach(item => {
+            if (!item.getAttribute('tabindex')) {
+                item.setAttribute('tabindex', '0');
+            }
+        });
+    }
+
+    // Call accessibility improvements after DOM is fully loaded
+    setTimeout(improveAccessibility, 1000);
+
+    // Add responsive behavior for the songs grid
+    function handleResponsiveLayout() {
+        const songsGridContainer = document.getElementById('songs-grid');
+        if (songsGridContainer) {
+            if (window.innerWidth < 640) {
+                songsGridContainer.style.gridTemplateColumns = 'repeat(1, 1fr)';
+            } else if (window.innerWidth < 1024) {
+                songsGridContainer.style.gridTemplateColumns = 'repeat(2, 1fr)';
+            } else {
+                songsGridContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
+            }
+        }
+    }
+
+    // Initial call and add event listener for window resize
+    handleResponsiveLayout();
+    window.addEventListener('resize', handleResponsiveLayout);
 });

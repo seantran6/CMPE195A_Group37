@@ -24,7 +24,7 @@
                 </div>
                 <nav class="main-nav">
                     <a href="{{ url_for('home') }}" class="nav-link">Home</a>
-                    <a href="{{ url_for('recognition') }}" class="nav-link">Recognition</a>
+                    <a href="{{ url_for('recognition') }}" class="nav-link active">Recognition</a>
                     <a href="#" class="nav-link">Login</a>
                 </nav>
                 <div class="header-actions">
@@ -60,7 +60,7 @@
                                 </div>
                                 <p>Click the button below to start your webcam</p>
                             </div>
-                            <video id="webcam" class="webcam-video" autoplay playsinline muted></video>
+                            <video id="webcam" class="webcam-video" autoplay playsinline muted width="640" height="480"></video>
                             <img id="captured-image" class="captured-image" alt="Captured frame" style="display: none;">
                             <canvas id="canvas" style="display: none;"></canvas>
 
@@ -126,8 +126,8 @@
                                         Based on your mood
                                     </p>
                                     <div class="tabs-list gradient-border">
-                                        <button class="tab-trigger active" data-tab="grid">Grid</button>
-                                        <button class="tab-trigger" data-tab="list">List</button>
+                                        <button id="grid-view-btn" class="tab-trigger active" data-tab="grid">Grid</button>
+                                        <button id="list-view-btn" class="tab-trigger" data-tab="list">List</button>
                                     </div>
                                 </div>
 
@@ -199,6 +199,5 @@
     </script>
 </body>
 </html>
-
 
 
