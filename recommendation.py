@@ -246,8 +246,7 @@ def get_tracks_for_demographic(
                     "artists":     ", ".join(a["name"] for a in t["artists"]),
                     "preview_url": t["preview_url"],
                     "track_url":   f"https://open.spotify.com/track/{t['id']}",
-                    "image": (t["album"]["images"][-1]["url"]
-                              if t["album"]["images"] else "")
+                    "image": t["album"]["images"][0]["url"] if t["album"]["images"] else ""
                 }
 
         # if we still need more, top-up with decade hits

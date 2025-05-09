@@ -99,6 +99,18 @@ def process_image(image_data):
 
     return resultImg, gender, age
 
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/home')
+def home():
+    return render_template('index.html')
+
+@app.route('/recognition')
+def recognition():
+    return render_template('recognition.html')
+
 @app.route('/recognize', methods=['POST'])
 def recognize():
     data = request.get_json()
@@ -111,19 +123,11 @@ def recognize():
 
     return jsonify({'gender': gender, 'age': age, 'image': result_image})
 
-@app.route('/recognition', methods=['GET'])
-def recognition():
-    return render_template('recognition.html')
-
-@app.route('/home')
-def home():
-    return render_template('recognition.html')   # or a separate home.html
-
 @app.route('/recommend_tracks')
 def recommend_tracks():
     age    = request.args.get('age')
     gender = request.args.get('gender')
-    n      = int(request.args.get('n', 3))        # ← new
+    n      = int(request.args.get('n', 6))  # Default to 6 tracks
     tracks = get_tracks_for_demographic(age, gender, n=n)
     return jsonify({'tracks': tracks})
 
