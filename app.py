@@ -117,11 +117,11 @@ def process_image(image_data):
 
         with torch.no_grad():
             age_pred, gender_pred = model(face_tensor)
-            age_val = age_pred.item()
+            age_val = int(round(age_pred.item()))
             gender_idx = torch.argmax(gender_pred, dim=1).item()
 
         gender = "Male" if gender_idx == 0 else "Female"
-        age = f"{age_val:.1f}"
+        age = str(age_val)
 
         # Draw box and label
         cv2.rectangle(resultImg, (x1, y1), (x2, y2), (0, 255, 0), 2)
