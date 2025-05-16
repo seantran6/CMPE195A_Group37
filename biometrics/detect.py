@@ -1,13 +1,13 @@
 import cv2
-import math
 import argparse
 import os
 import torch
 import torch.nn as nn
-from torchvision import transforms
 from torchvision.models import resnet18, ResNet18_Weights
 from PIL import Image
+import numpy as np
 
+# Model definition
 class AgeGenderResNet(nn.Module):
     def __init__(self):
         super().__init__()
@@ -31,10 +31,10 @@ class AgeGenderResNet(nn.Module):
         gender = self.gender_head(features)
         return age, gender
 
+# Face detection
 def highlightFace(net, frame, conf_threshold=0.7):
     frameOpencvDnn = frame.copy()
-    frameHeight = frameOpencvDnn.shape[0]
-    frameWidth = frameOpencvDnn.shape[1]
+    h, w = frame.shape[:2]
     blob = cv2.dnn.blobFromImage(frameOpencvDnn, 1.0, (300, 300), [104, 117, 123], True, False)
     net.setInput(blob)
     detections = net.forward()
@@ -42,120 +42,120 @@ def highlightFace(net, frame, conf_threshold=0.7):
     for i in range(detections.shape[2]):
         confidence = detections[0, 0, i, 2]
         if confidence > conf_threshold:
-            x1 = int(detections[0, 0, i, 3] * frameWidth)
-            y1 = int(detections[0, 0, i, 4] * frameHeight)
-            x2 = int(detections[0, 0, i, 5] * frameWidth)
-            y2 = int(detections[0, 0, i, 6] * frameHeight)
+            x1 = int(detections[0, 0, i, 3] * w)
+            y1 = int(detections[0, 0, i, 4] * h)
+            x2 = int(detections[0, 0, i, 5] * w)
+            y2 = int(detections[0, 0, i, 6] * h)
             faceBoxes.append([x1, y1, x2, y2])
-            cv2.rectangle(frameOpencvDnn, (x1, y1), (x2, y2), (0, 255, 0), int(round(frameHeight / 150)), 8)
+            cv2.rectangle(frameOpencvDnn, (x1, y1), (x2, y2), (0, 255, 0), max(1, int(round(h / 150))), 8)
     return frameOpencvDnn, faceBoxes
 
-# Argument parser
+# Face processing
+def predict_face(model, device, transform, frame, box, padding=20):
+    x1, y1, x2, y2 = box
+    y1 = max(0, y1 - padding)
+    y2 = min(frame.shape[0] - 1, y2 + padding)
+    x1 = max(0, x1 - padding)
+    x2 = min(frame.shape[1] - 1, x2 + padding)
+    face = frame[y1:y2, x1:x2]
+
+    if face.shape[0] < 20 or face.shape[1] < 20:
+        print("Face too small, skipping...")
+        return None, None
+
+    face_rgb = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
+    face_pil = Image.fromarray(face_rgb)
+    face_tensor = transform(face_pil).unsqueeze(0).to(device)
+
+    try:
+        with torch.no_grad():
+            pred_age, pred_gender = model(face_tensor)
+            age = int(pred_age.item())
+            gender_idx = torch.argmax(pred_gender, dim=1).item()
+            gender = ['Male', 'Female'][gender_idx]
+            return age, gender
+    except Exception as e:
+        print(f"Error during model inference: {e}")
+        return None, None
+
+# CLI argument
 parser = argparse.ArgumentParser()
 parser.add_argument('--image', help='Path to image file')
 args = parser.parse_args()
 
-# Load face detection model files
+# Paths
 base_dir = os.path.dirname(__file__)
+model_path = os.path.join(base_dir, "age_gender_resnet18.pth")
 faceProto = os.path.join(base_dir, "opencv_face_detector.pbtxt")
 faceModel = os.path.join(base_dir, "opencv_face_detector_uint8.pb")
+
+# Load face detector
 faceNet = cv2.dnn.readNet(faceModel, faceProto)
 
-# Load Age-Gender PyTorch model
+# Load model
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = AgeGenderResNet().to(device)
-model.load_state_dict(torch.load(os.path.join(base_dir, "age_gender_resnet18.pth"), map_location=device))
+if not os.path.exists(model_path):
+    print(f"Model file not found: {model_path}")
+    exit(1)
+model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
+print("Model loaded successfully.")
 
-# Get preprocessing pipeline from torchvision weights
+# Transform
 weights = ResNet18_Weights.DEFAULT
-preprocess = weights.transforms()
-genderList = ['Male', 'Female']
+transform = weights.transforms()
 
-padding = 20
-
+# Static image mode
 if args.image:
-    # Process single image
     frame = cv2.imread(args.image)
     if frame is None:
-        print(f"Error: Could not read image {args.image}")
+        print(f"Could not load image: {args.image}")
         exit(1)
+
     resultImg, faceBoxes = highlightFace(faceNet, frame)
+
     if not faceBoxes:
-        print("No face detected")
+        print("No face detected.")
     else:
-        for faceBox in faceBoxes:
-            face = frame[max(0, faceBox[1] - padding):min(faceBox[3] + padding, frame.shape[0] - 1),
-                         max(0, faceBox[0] - padding):min(faceBox[2] + padding, frame.shape[1] - 1)]
+        for box in faceBoxes:
+            age, gender = predict_face(model, device, transform, frame, box)
+            if age is not None and gender is not None:
+                print(f"Gender: {gender}")
+                print(f"Age: {age} years")
+                cv2.putText(resultImg, f"{gender}, {age}", (box[0], box[1] - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 
-            # Convert to RGB and preprocess
-            face_rgb = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
-            face_pil = Image.fromarray(face_rgb)
-            face_tensor = preprocess(face_pil).unsqueeze(0).to(device)
-
-            with torch.no_grad():
-                pred_age, pred_gender = model(face_tensor)
-                age = int(pred_age.item())
-                gender_idx = torch.argmax(pred_gender, dim=1).item()
-                gender = genderList[gender_idx]
-
-            print(f"Gender: {gender}")
-            print(f"Age: {age} years")
-
-            cv2.putText(resultImg, f'{gender}, {age}', (faceBox[0], faceBox[1] - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
-
-    cv2.imshow("Detecting age and gender", resultImg)
+    cv2.imshow("Detection", resultImg)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+# Webcam mode
 else:
-    # Open webcam stream
-    video = cv2.VideoCapture(0)
-    if not video.isOpened():
-        print("Error: Could not open webcam")
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Could not open webcam.")
         exit(1)
 
     while True:
-        hasFrame, frame = video.read()
-        if not hasFrame:
-            print("Error: No frame captured from webcam")
+        ret, frame = cap.read()
+        if not ret:
             break
 
         resultImg, faceBoxes = highlightFace(faceNet, frame)
-        if not faceBoxes:
-            # No faces found; just show frame
-            cv2.imshow("Detecting age and gender", resultImg)
-            key = cv2.waitKey(1)
-            if key == 27 or key == ord('q'):
-                break
-            continue
 
-        for faceBox in faceBoxes:
-            face = frame[max(0, faceBox[1] - padding):min(faceBox[3] + padding, frame.shape[0] - 1),
-                         max(0, faceBox[0] - padding):min(faceBox[2] + padding, frame.shape[1] - 1)]
+        for box in faceBoxes:
+            age, gender = predict_face(model, device, transform, frame, box)
+            if age is not None and gender is not None:
+                print(f"Gender: {gender}")
+                print(f"Age: {age} years")
+                cv2.putText(resultImg, f"{gender}, {age}", (box[0], box[1] - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 
-            face_rgb = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
-            face_pil = Image.fromarray(face_rgb)
-            face_tensor = preprocess(face_pil).unsqueeze(0).to(device)
-
-            with torch.no_grad():
-                pred_age, pred_gender = model(face_tensor)
-                age = int(pred_age.item())
-                gender_idx = torch.argmax(pred_gender, dim=1).item()
-                gender = genderList[gender_idx]
-
-            print(f"Gender: {gender}")
-            print(f"Age: {age} years")
-
-            cv2.putText(resultImg, f'{gender}, {age}', (faceBox[0], faceBox[1] - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2, cv2.LINE_AA)
-
-        cv2.imshow("Detecting age and gender", resultImg)
-
+        cv2.imshow("Detection", resultImg)
         key = cv2.waitKey(1)
-        if key == 27 or key == ord('q'):  # ESC or q to quit
+        if key == 27 or key == ord('q'):
             break
 
-    video.release()
+    cap.release()
     cv2.destroyAllWindows()
