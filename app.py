@@ -31,25 +31,29 @@ print("DEBUG - faceProto =", faceProto)
 faceNet = cv2.dnn.readNet(faceModel, faceProto)
 
 # Load your PyTorch age/gender model
-class AgeGenderResNet(torch.nn.Module):
-    def __init__(self, num_classes=2):
-        super(AgeGenderResNet, self).__init__()
-        # Define your model architecture here matching your trained model
-        # Example: Using pretrained ResNet18 backbone and two heads (age regression + gender classification)
-        import torchvision.models as models
-        self.backbone = models.resnet18(pretrained=False)
-        self.backbone.fc = torch.nn.Identity()  # Remove final fc layer
+class AgeGenderResNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        weights = ResNet18_Weights.DEFAULT
+        self.backbone = resnet18(weights=weights)
+        self.backbone.fc = nn.Identity()
 
-        # Age regression head (1 output)
-        self.age_head = torch.nn.Linear(512, 1)
-        # Gender classification head (2 outputs: male/female)
-        self.gender_head = torch.nn.Linear(512, 2)
+        self.age_head = nn.Sequential(
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, 1),
+        )
+        self.gender_head = nn.Sequential(
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, 2),
+        )
 
     def forward(self, x):
         features = self.backbone(x)
-        age = self.age_head(features).squeeze(1)  # regression output
-        gender = self.gender_head(features)       # classification logits
-        return age, gender
+        age_pred = self.age_head(features).squeeze(1)
+        gender_pred = self.gender_head(features)
+        return age_pred, gender_pred
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model_path = os.path.join(base_dir, "biometrics", "age_gender_resnet18.pth")
