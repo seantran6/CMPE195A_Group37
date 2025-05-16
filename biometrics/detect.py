@@ -65,6 +65,7 @@ def predict_face(model, device, transform, frame, box, padding=20):
 
     face_rgb = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
     face_pil = Image.fromarray(face_rgb)
+    face_pil = face_pil.resize((224, 224))  # Resize to ResNet18 input
     face_tensor = transform(face_pil).unsqueeze(0).to(device)
 
     try:
@@ -72,7 +73,8 @@ def predict_face(model, device, transform, frame, box, padding=20):
             pred_age, pred_gender = model(face_tensor)
             age = int(pred_age.item())
             gender_idx = torch.argmax(pred_gender, dim=1).item()
-            gender = ['Male', 'Female'][gender_idx]
+            gender_map = {0: "Male", 1: "Female"}
+            gender = gender_map[gender_idx]
             return age, gender
     except Exception as e:
         print(f"Error during model inference: {e}")
