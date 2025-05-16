@@ -132,32 +132,64 @@ if args.image:
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-# Webcam mode
+# Webcam mode (replacing face detection logic)
 else:
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("Could not open webcam.")
         exit(1)
 
+    print("Press SPACE to capture image, ESC to quit.")
+
+    weights = ResNet18_Weights.DEFAULT
+    transform = weights.transforms()
+
+    captured = False
+    result_frame = None
+
     while True:
         ret, frame = cap.read()
         if not ret:
+            print("Failed to read frame.")
             break
 
-        resultImg, faceBoxes = highlightFace(faceNet, frame)
+        display_frame = frame.copy()
+        if captured:
+            cv2.putText(display_frame, "Image captured! Press R to reset.", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-        for box in faceBoxes:
-            age, gender = predict_face(model, device, transform, frame, box)
-            if age is not None and gender is not None:
-                print(f"Gender: {gender}")
-                print(f"Age: {age} years")
-                cv2.putText(resultImg, f"{gender}, {age}", (box[0], box[1] - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+        cv2.imshow("Press SPACE to Capture", display_frame)
 
-        cv2.imshow("Detection", resultImg)
-        key = cv2.waitKey(1)
-        if key == 27 or key == ord('q'):
+        if captured and result_frame is not None:
+            cv2.imshow("Prediction", result_frame)
+
+        key = cv2.waitKey(1) & 0xFF
+        if key == 27:  # ESC
             break
+        elif key == 32:  # SPACE
+            captured = True
+            img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            img_pil = Image.fromarray(img)
+            img_pil = img_pil.resize((224, 224))  # Resize input to 224x224
+            img_tensor = transform(img_pil).unsqueeze(0).to(device)
+
+            with torch.no_grad():
+                pred_age, pred_gender = model(img_tensor)
+                age = int(pred_age.item())
+                gender_idx = torch.argmax(pred_gender, dim=1).item()
+                gender_map = {0: "Male", 1: "Female"}
+                gender = gender_map[gender_idx]
+
+            print(f"Predicted Age: {age}")
+            print(f"Predicted Gender: {gender}")
+
+            result_frame = frame.copy()
+            cv2.putText(result_frame, f"Age: {age}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+            cv2.putText(result_frame, f"Gender: {gender}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2)
+
+        elif key == ord('r') and captured:
+            captured = False
+            result_frame = None
 
     cap.release()
     cv2.destroyAllWindows()
+
