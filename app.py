@@ -52,7 +52,7 @@ class AgeGenderResNet(torch.nn.Module):
         return age, gender
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model_path = os.path.join(base_dir, "age_gender_resnet18.pth")
+model_path = os.path.join(base_dir, "biometrics", "age_gender_resnet18.pth")
 model = AgeGenderResNet().to(device)
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
