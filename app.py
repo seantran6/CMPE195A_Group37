@@ -14,26 +14,23 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 from torchvision.models import resnet18, ResNet18_Weights
 
-
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
+# Spotify API auth
 sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
-
-print("=== DEBUG - importing app.py ===")
-print("faceModel _before_ assignment =", globals().get("faceModel"))
 
 app = Flask(__name__)
 
-# Load face detection model (OpenCV DNN) as before
+# Paths for face detector models
 base_dir = os.path.dirname(__file__)
 faceProto = os.path.join(base_dir, "biometrics", "opencv_face_detector.pbtxt")
 faceModel = os.path.join(base_dir, "biometrics", "opencv_face_detector_uint8.pb")
-print("DEBUG - faceModel =", faceModel)
-print("DEBUG - faceProto =", faceProto)
+
+# Load OpenCV face detector DNN model
 faceNet = cv2.dnn.readNet(faceModel, faceProto)
 
-# Load your PyTorch age/gender model
+# Define PyTorch model
 class AgeGenderResNet(nn.Module):
     def __init__(self):
         super().__init__()
@@ -60,11 +57,13 @@ class AgeGenderResNet(nn.Module):
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model_path = os.path.join(base_dir, "biometrics", "age_gender_resnet18.pth")
+
+# Load the model weights
 model = AgeGenderResNet().to(device)
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
-# Define transforms (must match training)
+# Image preprocessing pipeline (match training transforms)
 transform = transforms.Compose([
     transforms.ToPILImage(),
     transforms.Resize((224, 224)),
@@ -75,8 +74,7 @@ transform = transforms.Compose([
 
 def highlightFace(net, frame, conf_threshold=0.7):
     frameOpencvDnn = frame.copy()
-    frameHeight = frameOpencvDnn.shape[0]
-    frameWidth = frameOpencvDnn.shape[1]
+    h, w = frameOpencvDnn.shape[:2]
     blob = cv2.dnn.blobFromImage(frameOpencvDnn, 1.0, (300, 300), [104, 117, 123], True, False)
 
     net.setInput(blob)
@@ -85,50 +83,57 @@ def highlightFace(net, frame, conf_threshold=0.7):
     for i in range(detections.shape[2]):
         confidence = detections[0, 0, i, 2]
         if confidence > conf_threshold:
-            x1 = int(detections[0, 0, i, 3] * frameWidth)
-            y1 = int(detections[0, 0, i, 4] * frameHeight)
-            x2 = int(detections[0, 0, i, 5] * frameWidth)
-            y2 = int(detections[0, 0, i, 6] * frameHeight)
+            x1 = int(detections[0, 0, i, 3] * w)
+            y1 = int(detections[0, 0, i, 4] * h)
+            x2 = int(detections[0, 0, i, 5] * w)
+            y2 = int(detections[0, 0, i, 6] * h)
             faceBoxes.append([x1, y1, x2, y2])
-            cv2.rectangle(frameOpencvDnn, (x1, y1), (x2, y2), (0, 255, 0), int(round(frameHeight / 150)), 8)
+            cv2.rectangle(frameOpencvDnn, (x1, y1), (x2, y2), (0, 255, 0), max(1, int(round(h / 150))), 8)
     return frameOpencvDnn, faceBoxes
 
 def process_image(image_data):
-    # Decode base64 image
-    img_data = base64.b64decode(image_data.split(',')[1])
-    img = Image.open(BytesIO(img_data))
-    img = np.array(img)
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # Convert PIL RGB to OpenCV BGR
+    try:
+        # Decode base64 image data
+        img_data = base64.b64decode(image_data.split(',')[1])
+        img = Image.open(BytesIO(img_data)).convert('RGB')
+        img = np.array(img)
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # PIL to OpenCV
 
-    resultImg, faceBoxes = highlightFace(faceNet, img)
+        # Detect faces
+        resultImg, faceBoxes = highlightFace(faceNet, img)
 
-    gender = "Unknown"
-    age = "Unknown"
+        gender = "Unknown"
+        age = "Unknown"
 
-    if faceBoxes:
-        x1, y1, x2, y2 = faceBoxes[0]
-        # Clamp coordinates inside image bounds
-        x1, y1 = max(0, x1), max(0, y1)
-        x2, y2 = min(resultImg.shape[1] - 1, x2), min(resultImg.shape[0] - 1, y2)
-        face = resultImg[y1:y2, x1:x2]
+        if faceBoxes:
+            # Use the first detected face
+            x1, y1, x2, y2 = faceBoxes[0]
+            # Clamp coordinates within image bounds
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(resultImg.shape[1] - 1, x2), min(resultImg.shape[0] - 1, y2)
 
-        # Preprocess face for model
-        face_tensor = transform(face).unsqueeze(0).to(device)
+            if x2 > x1 and y2 > y1:
+                face = resultImg[y1:y2, x1:x2]
+                # Preprocess face
+                face_tensor = transform(face).unsqueeze(0).to(device)
 
-        with torch.no_grad():
-            age_pred, gender_pred = model(face_tensor)
-            age_val = int(round(age_pred.item()))
-            gender_idx = torch.argmax(gender_pred, dim=1).item()
+                with torch.no_grad():
+                    age_pred, gender_pred = model(face_tensor)
+                    age_val = int(round(age_pred.item()))
+                    gender_idx = torch.argmax(gender_pred, dim=1).item()
 
-        gender = "Male" if gender_idx == 0 else "Female"
-        age = str(age_val)
+                gender = "Male" if gender_idx == 0 else "Female"
+                age = str(age_val)
 
-        # Draw box and label
-        cv2.rectangle(resultImg, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cv2.putText(resultImg, f"{gender}, {age}", (x1, y1 - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                # Draw bounding box and label
+                cv2.rectangle(resultImg, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.putText(resultImg, f"{gender}, {age}", (x1, y1 - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-    return resultImg, gender, age
+        return resultImg, gender, age
+    except Exception as e:
+        print(f"Error in process_image: {e}")
+        return np.zeros((480, 640, 3), dtype=np.uint8), "Unknown", "Unknown"
 
 @app.route('/')
 def index():
