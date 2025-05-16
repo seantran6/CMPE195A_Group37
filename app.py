@@ -1,9 +1,7 @@
-﻿import base64
+import base64
 import cv2
 import numpy as np
 from flask import Flask, render_template, request, jsonify
-import threading
-import time
 import os
 from io import BytesIO
 from PIL import Image
@@ -11,43 +9,62 @@ from recommendation import get_tracks_for_demographic
 from dotenv import load_dotenv
 load_dotenv()
 
+import torch
+import torchvision.transforms as transforms
+
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
 sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
 
-print("=== DEBUG - importing app.py ===")   # replace the long dash with a normal "-"
+print("=== DEBUG - importing app.py ===")
 print("faceModel _before_ assignment =", globals().get("faceModel"))
 
 app = Flask(__name__)
 
-# Load the pre-trained models
+# Load face detection model (OpenCV DNN) as before
 base_dir = os.path.dirname(__file__)
-# Paths to the face, gender, and age model files
-# Face-detection model files
-faceProto  = os.path.join(base_dir, "biometrics", "opencv_face_detector.pbtxt")
-faceModel  = os.path.join(base_dir, "biometrics", "opencv_face_detector_uint8.pb")
-
-# Gender-detection model files
-genderProto = os.path.join(base_dir, "biometrics", "gender_deploy.prototxt")
-genderModel = os.path.join(base_dir, "biometrics", "gender_net.caffemodel")
-
-# Age-detection model files
-ageProto  = os.path.join(base_dir, "biometrics", "age_deploy.prototxt")
-ageModel  = os.path.join(base_dir, "biometrics", "age_net.caffemodel")
-
-
-MODEL_MEAN_VALUES = (78.4263377603, 87.7689143744, 114.895847746)
-ageList = ['(0-2)', '(4-6)', '(8-12)', '(15-20)', '(25-32)', '(38-43)', '(48-53)', '(60-100)']
-genderList = ['Male', 'Female']
-
+faceProto = os.path.join(base_dir, "biometrics", "opencv_face_detector.pbtxt")
+faceModel = os.path.join(base_dir, "biometrics", "opencv_face_detector_uint8.pb")
 print("DEBUG - faceModel =", faceModel)
 print("DEBUG - faceProto =", faceProto)
-print("faceModel _right before readNet =", faceModel)
-
 faceNet = cv2.dnn.readNet(faceModel, faceProto)
-ageNet = cv2.dnn.readNet(ageModel, ageProto)
-genderNet = cv2.dnn.readNet(genderModel, genderProto)
+
+# Load your PyTorch age/gender model
+class AgeGenderResNet(torch.nn.Module):
+    def __init__(self, num_classes=2):
+        super(AgeGenderResNet, self).__init__()
+        # Define your model architecture here matching your trained model
+        # Example: Using pretrained ResNet18 backbone and two heads (age regression + gender classification)
+        import torchvision.models as models
+        self.backbone = models.resnet18(pretrained=False)
+        self.backbone.fc = torch.nn.Identity()  # Remove final fc layer
+
+        # Age regression head (1 output)
+        self.age_head = torch.nn.Linear(512, 1)
+        # Gender classification head (2 outputs: male/female)
+        self.gender_head = torch.nn.Linear(512, 2)
+
+    def forward(self, x):
+        features = self.backbone(x)
+        age = self.age_head(features).squeeze(1)  # regression output
+        gender = self.gender_head(features)       # classification logits
+        return age, gender
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model_path = os.path.join(base_dir, "age_gender_resnet18.pth")
+model = AgeGenderResNet().to(device)
+model.load_state_dict(torch.load(model_path, map_location=device))
+model.eval()
+
+# Define transforms (must match training)
+transform = transforms.Compose([
+    transforms.ToPILImage(),
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225]),
+])
 
 def highlightFace(net, frame, conf_threshold=0.7):
     frameOpencvDnn = frame.copy()
@@ -66,17 +83,15 @@ def highlightFace(net, frame, conf_threshold=0.7):
             x2 = int(detections[0, 0, i, 5] * frameWidth)
             y2 = int(detections[0, 0, i, 6] * frameHeight)
             faceBoxes.append([x1, y1, x2, y2])
-            # Draw bounding box for face
             cv2.rectangle(frameOpencvDnn, (x1, y1), (x2, y2), (0, 255, 0), int(round(frameHeight / 150)), 8)
     return frameOpencvDnn, faceBoxes
 
-# Decode the base64 image and process it
 def process_image(image_data):
-    # Decode the image
-    img_data = base64.b64decode(image_data.split(',')[1])  # Remove "data:image/jpeg;base64,"
+    # Decode base64 image
+    img_data = base64.b64decode(image_data.split(',')[1])
     img = Image.open(BytesIO(img_data))
     img = np.array(img)
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # Convert from RGB to BGR
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # Convert PIL RGB to OpenCV BGR
 
     resultImg, faceBoxes = highlightFace(faceNet, img)
 
@@ -84,18 +99,27 @@ def process_image(image_data):
     age = "Unknown"
 
     if faceBoxes:
-        # Assuming the first face is the one to detect
-        face = resultImg[max(0, faceBoxes[0][1]):min(faceBoxes[0][3], resultImg.shape[0] - 1),
-                         max(0, faceBoxes[0][0]):min(faceBoxes[0][2], resultImg.shape[1] - 1)]
-        
-        blob = cv2.dnn.blobFromImage(face, 1.0, (227, 227), MODEL_MEAN_VALUES, swapRB=False)
-        genderNet.setInput(blob)
-        genderPreds = genderNet.forward()
-        gender = genderList[genderPreds[0].argmax()]  # Predict gender
+        x1, y1, x2, y2 = faceBoxes[0]
+        # Clamp coordinates inside image bounds
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(resultImg.shape[1] - 1, x2), min(resultImg.shape[0] - 1, y2)
+        face = resultImg[y1:y2, x1:x2]
 
-        ageNet.setInput(blob)
-        agePreds = ageNet.forward()
-        age = ageList[agePreds[0].argmax()]  # Predict age
+        # Preprocess face for model
+        face_tensor = transform(face).unsqueeze(0).to(device)
+
+        with torch.no_grad():
+            age_pred, gender_pred = model(face_tensor)
+            age_val = age_pred.item()
+            gender_idx = torch.argmax(gender_pred, dim=1).item()
+
+        gender = "Male" if gender_idx == 0 else "Female"
+        age = f"{age_val:.1f}"
+
+        # Draw box and label
+        cv2.rectangle(resultImg, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        cv2.putText(resultImg, f"{gender}, {age}", (x1, y1 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
     return resultImg, gender, age
 
@@ -117,7 +141,6 @@ def recognize():
     image_data = data['image']
     resultImg, gender, age = process_image(image_data)
 
-    # Convert result image back to base64 for sending it to frontend
     _, buffer = cv2.imencode('.jpg', resultImg)
     result_image = base64.b64encode(buffer).decode('utf-8')
 
@@ -125,14 +148,11 @@ def recognize():
 
 @app.route('/recommend_tracks')
 def recommend_tracks():
-    age    = request.args.get('age')
+    age = request.args.get('age')
     gender = request.args.get('gender')
-    n      = int(request.args.get('n', 6))  # Default to 6 tracks
+    n = int(request.args.get('n', 6))
     tracks = get_tracks_for_demographic(age, gender, n=n)
     return jsonify({'tracks': tracks})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-
-
