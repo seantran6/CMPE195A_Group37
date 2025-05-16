@@ -5,39 +5,41 @@ from flask import Flask, render_template, request, jsonify
 import os
 from io import BytesIO
 from PIL import Image
+import traceback
+
 from recommendation import get_tracks_for_demographic
 from dotenv import load_dotenv
 load_dotenv()
 
 import torch
-import torchvision.transforms as transforms
 import torch.nn as nn
 from torchvision.models import resnet18, ResNet18_Weights
 
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
-# Spotify API auth
+# Spotify API Auth
 sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
 
+# Flask App Init
 app = Flask(__name__)
 
-# Paths for face detector models
+# Paths
 base_dir = os.path.dirname(__file__)
+model_path = os.path.join(base_dir, "biometrics", "age_gender_resnet18.pth")
 faceProto = os.path.join(base_dir, "biometrics", "opencv_face_detector.pbtxt")
 faceModel = os.path.join(base_dir, "biometrics", "opencv_face_detector_uint8.pb")
 
-# Load OpenCV face detector DNN model
+# Load OpenCV Face Detector
 faceNet = cv2.dnn.readNet(faceModel, faceProto)
 
-# Define PyTorch model
+# PyTorch Age-Gender Model Definition
 class AgeGenderResNet(nn.Module):
     def __init__(self):
         super().__init__()
         weights = ResNet18_Weights.DEFAULT
         self.backbone = resnet18(weights=weights)
         self.backbone.fc = nn.Identity()
-
         self.age_head = nn.Sequential(
             nn.Linear(512, 256),
             nn.ReLU(),
@@ -55,23 +57,23 @@ class AgeGenderResNet(nn.Module):
         gender_pred = self.gender_head(features)
         return age_pred, gender_pred
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model_path = os.path.join(base_dir, "biometrics", "age_gender_resnet18.pth")
+# Device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load the model weights
+# Load Model Weights
+print(f"Loading model from: {model_path}")
+if not os.path.exists(model_path):
+    raise FileNotFoundError(f"Model file not found: {model_path}")
+
 model = AgeGenderResNet().to(device)
 model.load_state_dict(torch.load(model_path, map_location=device))
 model.eval()
 
-# Image preprocessing pipeline (match training transforms)
-transform = transforms.Compose([
-    transforms.ToPILImage(),
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                         std=[0.229, 0.224, 0.225]),
-])
+# Image Preprocessing
+weights = ResNet18_Weights.DEFAULT
+transform = weights.transforms()
 
+# Face Detection
 def highlightFace(net, frame, conf_threshold=0.7):
     frameOpencvDnn = frame.copy()
     h, w = frameOpencvDnn.shape[:2]
@@ -91,31 +93,32 @@ def highlightFace(net, frame, conf_threshold=0.7):
             cv2.rectangle(frameOpencvDnn, (x1, y1), (x2, y2), (0, 255, 0), max(1, int(round(h / 150))), 8)
     return frameOpencvDnn, faceBoxes
 
+# Image Processing
 def process_image(image_data):
     try:
-        # Decode base64 image data
         img_data = base64.b64decode(image_data.split(',')[1])
         img = Image.open(BytesIO(img_data)).convert('RGB')
         img = np.array(img)
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # PIL to OpenCV
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-        # Detect faces
         resultImg, faceBoxes = highlightFace(faceNet, img)
 
         gender = "Unknown"
         age = "Unknown"
 
         if faceBoxes:
-            # Use the first detected face
             x1, y1, x2, y2 = faceBoxes[0]
-            # Clamp coordinates within image bounds
             x1, y1 = max(0, x1), max(0, y1)
             x2, y2 = min(resultImg.shape[1] - 1, x2), min(resultImg.shape[0] - 1, y2)
 
             if x2 > x1 and y2 > y1:
                 face = resultImg[y1:y2, x1:x2]
-                # Preprocess face
-                face_tensor = transform(face).unsqueeze(0).to(device)
+                print("Detected face shape:", face.shape)
+
+                if face.shape[0] < 20 or face.shape[1] < 20:
+                    raise ValueError("Detected face is too small for model.")
+
+                face_tensor = transform(Image.fromarray(cv2.cvtColor(face, cv2.COLOR_BGR2RGB))).unsqueeze(0).to(device)
 
                 with torch.no_grad():
                     age_pred, gender_pred = model(face_tensor)
@@ -125,20 +128,18 @@ def process_image(image_data):
                 gender = "Male" if gender_idx == 0 else "Female"
                 age = str(age_val)
 
-                # Draw bounding box and label
                 cv2.rectangle(resultImg, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 cv2.putText(resultImg, f"{gender}, {age}", (x1, y1 - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
         return resultImg, gender, age
     except Exception as e:
-        print(f"Error in process_image: {e}")
+        print("Error in process_image:", e)
+        traceback.print_exc()
         return np.zeros((480, 640, 3), dtype=np.uint8), "Unknown", "Unknown"
 
+# Routes
 @app.route('/')
-def index():
-    return render_template('index.html')
-
 @app.route('/home')
 def home():
     return render_template('index.html')
@@ -166,5 +167,6 @@ def recommend_tracks():
     tracks = get_tracks_for_demographic(age, gender, n=n)
     return jsonify({'tracks': tracks})
 
+# Run App
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
