@@ -11,6 +11,7 @@ load_dotenv()
 
 import torch
 import torchvision.transforms as transforms
+import torch.nn as nn
 
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
