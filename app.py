@@ -9,6 +9,9 @@ import traceback
 
 from recommendation import get_tracks_for_demographic
 from dotenv import load_dotenv
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+
 load_dotenv()
 
 client_id = os.getenv("178a1cf820ed475b90627b08a7ee3fcb")
