@@ -19,7 +19,7 @@ sp = spotipy.Spotify(
 
 # ─────────────────────── Curated Recommendations ──────────────────────
 # Ensure at least 3 tracks per (age, gender) combination
-from curated_tracks import CURATED_TRACKS  # assume this is separated for clarity
+from curated_tracks import _CURATED_TRACKS as CURATED_TRACKS
 
 # ─────────────────────── Helpers ──────────────────────────────────────
 def age_to_decade(age_label: str) -> str:
