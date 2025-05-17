@@ -22,6 +22,28 @@ sp = spotipy.Spotify(
 from curated_tracks import _CURATED_TRACKS as CURATED_TRACKS
 
 # ─────────────────────── Helpers ──────────────────────────────────────
+
+def age_to_range(age: int) -> str | None:
+    """Convert numeric age to age range string used in CURATED_TRACKS keys."""
+    if 0 <= age <= 2:
+        return "(0-2)"
+    elif 4 <= age <= 6:
+        return "(4-6)"
+    elif 8 <= age <= 12:
+        return "(8-12)"
+    elif 15 <= age <= 20:
+        return "(15-20)"
+    elif 25 <= age <= 32:
+        return "(25-32)"
+    elif 38 <= age <= 43:
+        return "(38-43)"
+    elif 48 <= age <= 53:
+        return "(48-53)"
+    elif 60 <= age <= 100:
+        return "(60-100)"
+    else:
+        return None  # age outside known ranges
+
 def age_to_decade(age_label: str) -> str:
     try:
         low, high = map(int, age_label.strip("()").split("-"))
@@ -30,7 +52,6 @@ def age_to_decade(age_label: str) -> str:
         decade_label = f"({decade_start}-{decade_start + 9})"
         return decade_label
     except Exception as e:
-        # Log or raise custom error if needed
         raise ValueError(f"Invalid age label format: {age_label}") from e
 
 
@@ -43,6 +64,7 @@ def search_tracks(query: str, n: int) -> List[str]:
         return []
 
 # ─────────────────────── Public API ───────────────────────────────────
+
 @lru_cache(maxsize=128)
 def get_tracks_for_demographic(age_label: str, gender: str, n: int = 3, *, shuffle_result: bool = False) -> List[Dict]:
     """
@@ -84,3 +106,14 @@ def get_tracks_for_demographic(age_label: str, gender: str, n: int = 3, *, shuff
         random.shuffle(result)
 
     return result[:n]
+
+def get_tracks_for_age_and_gender(age: int, gender: str, n: int = 3, shuffle_result: bool = False) -> List[Dict]:
+    """
+    Wrapper function to convert numeric age to age range and get curated tracks.
+    """
+    age_range = age_to_range(age)
+    if age_range is None:
+        # Could return empty or fallback here, depending on design
+        print(f"Warning: Age {age} not in predefined ranges. Returning empty list.")
+        return []
+    return get_tracks_for_demographic(age_range, gender, n, shuffle_result=shuffle_result)
