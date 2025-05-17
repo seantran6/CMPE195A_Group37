@@ -3,16 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Facial.ly - Music Recommendations Based on Your Expression</title>
+    <title>Facial.ly - Recognition</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <!-- Add Inter font from Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Include Lucide icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
     <div class="app-container">
-        <!-- Header -->
         <header class="header">
             <div class="container header-container">
                 <div class="logo-container">
@@ -27,177 +24,69 @@
                     <a href="{{ url_for('recognition') }}" class="nav-link active">Recognition</a>
                     <a href="#" class="nav-link">Login</a>
                 </nav>
-                <div class="header-actions">
-                    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
-                        <i data-lucide="sun" class="icon-sun"></i>
-                        <i data-lucide="moon" class="icon-moon"></i>
-                    </button>
-                    <button class="menu-button" aria-label="Menu">
-                        <i data-lucide="menu" class="icon-menu"></i>
-                    </button>
-                </div>
             </div>
         </header>
 
-        <!-- Main Content -->
-        <main class="container main-content">
-            <div class="two-column-grid">
-                <!-- Left Column: Webcam and Analysis -->
-                <div class="left-column">
-                    <!-- Webcam Card -->
-                    <div class="card gradient-border">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <i data-lucide="camera" class="icon-primary animate-pulse"></i>
-                                <span class="gradient-text">Webcam Capture</span>
-                            </div>
-                        </div>
-                        <div class="card-content webcam-container">
-                            <div id="webcam-placeholder" class="webcam-placeholder">
-                                <div class="webcam-icon-container">
-                                    <i data-lucide="camera" class="webcam-icon"></i>
-                                    <i data-lucide="sparkles" class="sparkle-icon"></i>
-                                </div>
-                                <p>Click the button below to start your webcam</p>
-                            </div>
-                            <video id="webcam" class="webcam-video" autoplay playsinline muted width="640" height="480"></video>
-                            <img id="captured-image" class="captured-image" alt="Captured frame" style="display: none;">
-                            <canvas id="canvas" style="display: none;"></canvas>
+        <section class="section">
+            <div class="container">
+                <h2 class="section-title">Facial Recognition</h2>
+                <p class="section-description">Use your webcam to capture a frame and get music recommendations based on your facial attributes.</p>
 
-                            <div id="analyzing-overlay" class="analyzing-overlay" style="display: none;">
-                                <div class="analyzing-icon-container">
-                                    <i data-lucide="sparkles" class="analyzing-icon"></i>
-                                    <i data-lucide="zap" class="zap-icon"></i>
-                                </div>
-                                <h3 class="analyzing-title gradient-text">Analyzing Your Mood</h3>
-                                <div class="progress-container">
-                                    <div id="progress-bar" class="progress-bar"></div>
-                                </div>
-                                <p class="analyzing-text">Finding the perfect songs for you...</p>
-                            </div>
-                        </div>
-                        <div class="card-footer">
-                            <button id="capture-btn" class="button button-primary button-full">
-                                <span class="button-gradient-bg"></span>
-                                Start Webcam
-                            </button>
-                        </div>
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="file" name="frame" accept="image/*" required>
+                    <button type="submit" class="button button-primary">
+                        <i data-lucide="camera" class="button-icon"></i>
+                        Analyze Face
+                    </button>
+                </form>
+
+                {% if error %}
+                    <p style="color: red;">{{ error }}</p>
+                {% endif %}
+
+                {% if age and gender %}
+                    <div class="results" style="margin-top: 2rem;">
+                        <h3 class="section-title">Your Profile</h3>
+                        <p><strong>Age:</strong> {{ age }}</p>
+                        <p><strong>Gender:</strong> {{ gender }}</p>
+
+                        {% if image_url %}
+                            <img src="{{ url_for('static', filename=image_url.split('static/')[-1]) }}" alt="Captured Frame" style="max-width: 300px; margin-top: 1rem;">
+                        {% endif %}
+
+                        <h3 class="section-title" style="margin-top: 2rem;">Recommended Songs</h3>
+                        <ul class="song-list">
+                            {% for song in songs %}
+                                <li class="song-item">{{ song }}</li>
+                            {% endfor %}
+                        </ul>
                     </div>
+                {% endif %}
+            </div>
+        </section>
 
-                    <!-- Analysis Results Card (initially hidden) -->
-                    <div id="analysis-results" class="card gradient-border" style="display: none;">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <i data-lucide="sparkles" class="icon-secondary"></i>
-                                <span class="gradient-text-secondary">Analysis Results</span>
-                            </div>
+        <footer class="footer">
+            <div class="container footer-container">
+                <div class="footer-logo">
+                    <div class="logo-container">
+                        <div class="logo-icon">
+                            <i data-lucide="music" class="icon-primary"></i>
                         </div>
-                        <div class="card-content analysis-grid">
-                            <div class="analysis-item" data-animation="slide-right">
-                                <p class="analysis-label">Gender</p>
-                                <div id="gender" class="badge badge-outline badge-primary">
-                                    Analyzing...
-                                </div>
-                            </div>
-                            <div class="analysis-item" data-animation="slide-left">
-                                <p class="analysis-label">Age Range</p>
-                                <div id="age" class="badge badge-outline badge-secondary">
-                                    Analyzing...
-                                </div>
-                            </div>
-                        </div>
+                        <h2 class="logo-text">Facial.ly</h2>
                     </div>
-                </div>
-
-                <!-- Right Column: Song Recommendations -->
-                <div class="right-column">
-                    <div id="recommendations" class="card gradient-border full-height" style="display: none;">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <i data-lucide="disc-2" class="icon-accent animate-spin-slow"></i>
-                                <span class="gradient-text-accent">Recommended Songs</span>
-                            </div>
-                        </div>
-                        <div class="card-content">
-                            <div class="tabs-container">
-                                <div class="tabs-header">
-                                    <p class="mood-text">
-                                        <i data-lucide="heart" class="heart-icon"></i>
-                                        Based on your mood
-                                    </p>
-                                    <div class="tabs-list gradient-border">
-                                        <button id="grid-view-btn" class="tab-trigger active" data-tab="grid">Grid</button>
-                                        <button id="list-view-btn" class="tab-trigger" data-tab="list">List</button>
-                                    </div>
-                                </div>
-
-                                <div class="tab-content active" id="grid-view">
-                                    <div class="songs-grid" id="songs-grid">
-                                        <!-- Song cards will be inserted here by JavaScript -->
-                                    </div>
-                                </div>
-
-                                <div class="tab-content" id="list-view">
-                                    <div class="songs-list" id="songs-list">
-                                        <!-- Song list items will be inserted here by JavaScript -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <p class="footer-tagline">Music recommendations based on your face</p>
                 </div>
             </div>
-        </main>
+            <div class="footer-bottom">
+                <div class="container">
+                    <p class="copyright">© 2025 Facial.ly. All rights reserved.</p>
+                </div>
+            </div>
+        </footer>
     </div>
 
-    <!-- Templates for JavaScript to clone -->
-    <template id="song-card-template">
-        <div class="song-card gradient-border">
-            <div class="song-image-container">
-                <img class="song-image" src="/placeholder.svg" alt="">
-                <div class="song-overlay">
-                    <button class="play-button">
-                        <i data-lucide="play" class="play-icon"></i>
-                    </button>
-                    <button class="like-button">
-                        <i data-lucide="heart" class="heart-icon"></i>
-                    </button>
-                    <div class="playback-bar">
-                        <i data-lucide="volume-2" class="volume-icon"></i>
-                        <div class="progress-track">
-                            <div class="progress-indicator"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="song-info">
-                <p class="song-title"></p>
-                <p class="song-artist"></p>
-            </div>
-        </div>
-    </template>
-
-    <template id="song-list-item-template">
-        <div class="song-list-item gradient-border">
-            <div class="song-list-avatar">
-                <img class="song-list-image" src="/placeholder.svg" alt="">
-            </div>
-            <div class="song-list-info">
-                <p class="song-list-title"></p>
-                <p class="song-list-artist"></p>
-            </div>
-            <button class="song-list-play">
-                <i data-lucide="play" class="play-icon"></i>
-            </button>
-        </div>
-    </template>
-
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
     <script>
-        // Initialize Lucide icons
         lucide.createIcons();
     </script>
 </body>
 </html>
-
-
