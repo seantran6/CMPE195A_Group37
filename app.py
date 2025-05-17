@@ -12,18 +12,11 @@ from dotenv import load_dotenv
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
-load_dotenv()
+sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
+    client_id="178a1cf820ed475b90627b08a7ee3fcb",
+    client_secret="9f85798b2f4b44ff911a7c56fa8319f9"
+))
 
-client_id = os.getenv("178a1cf820ed475b90627b08a7ee3fcb")
-client_secret = os.getenv("9f85798b2f4b44ff911a7c56fa8319f9")
-print(client_id, client_secret)  # Debug print to confirm they're loaded
-
-sp = spotipy.Spotify(
-    auth_manager=SpotifyClientCredentials(
-        client_id=client_id,
-        client_secret=client_secret,
-    )
-)
 
 import torch
 import torch.nn as nn
