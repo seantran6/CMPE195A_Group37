@@ -18,7 +18,7 @@ from torchvision.models import resnet18, ResNet18_Weights
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 
-# Spotify API Auth
+# Spotify API Auth - make sure these environment variables are set!
 sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials())
 
 # Flask App Init
@@ -161,10 +161,18 @@ def recognize():
 
 @app.route('/recommend_tracks')
 def recommend_tracks():
-    age = request.args.get('age')
-    gender = request.args.get('gender')
-    n = int(request.args.get('n', 6))
-    tracks = get_tracks_for_demographic(age, gender, n=n)
+    age = request.args.get('age', '25')
+    gender = request.args.get('gender', 'Unknown')
+    n = request.args.get('n', 6)
+
+    try:
+        age_int = int(age)
+        n = int(n)
+    except ValueError:
+        age_int = 25
+        n = 6
+
+    tracks = get_tracks_for_demographic(age_int, gender, n=n)
     return jsonify({'tracks': tracks})
 
 # Run App
