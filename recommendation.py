@@ -10,12 +10,18 @@ from spotipy.oauth2 import SpotifyClientCredentials
 
 # ─────────────────────── Spotify Client Setup ──────────────────────────
 load_dotenv()
+
+client_id = os.getenv("SPOTIPY_CLIENT_ID")
+client_secret = os.getenv("SPOTIPY_CLIENT_SECRET")
+print(client_id, client_secret)  # Debug print to confirm they're loaded
+
 sp = spotipy.Spotify(
     auth_manager=SpotifyClientCredentials(
-        client_id=os.getenv("SPOTIPY_CLIENT_ID"),
-        client_secret=os.getenv("SPOTIPY_CLIENT_SECRET"),
+        client_id=client_id,
+        client_secret=client_secret,
     )
 )
+
 
 # ─────────────────────── Curated Recommendations ──────────────────────
 # Ensure at least 3 tracks per (age, gender) combination
