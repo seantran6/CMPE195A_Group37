@@ -172,9 +172,24 @@ def recommend_tracks():
         age_int = 25
         n = 6
 
-    tracks = get_tracks_for_demographic(age_int, gender, n=n)
-    return jsonify({'tracks': tracks})
+    # Convert int age to age label format
+    if age_int < 11:
+        age_label = "0-10"
+    elif age_int < 21:
+        age_label = "11-20"
+    elif age_int < 31:
+        age_label = "21-30"
+    elif age_int < 41:
+        age_label = "31-40"
+    elif age_int < 51:
+        age_label = "41-50"
+    elif age_int < 61:
+        age_label = "51-60"
+    else:
+        age_label = "61-100"
 
+    tracks = get_tracks_for_demographic(age_label, gender, n=n)
+    return jsonify({'tracks': tracks})
 # Run App
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
