@@ -33,18 +33,21 @@ document.addEventListener('DOMContentLoaded', () => {
         listView.innerHTML = '';
 
         songs.forEach(song => {
-            // Grid item
-            const gridItem = document.createElement('div');
-            gridItem.className = 'song-card gradient-border';
-            gridItem.innerHTML = `
-        <div class="song-image-container">
-          <img src="${song.cover || '/static/placeholder.svg'}" alt="${song.title}" class="song-image">
-        </div>
-        <div class="song-info">
-          <h3 class="song-title">${song.title}</h3>
-          <p class="song-artist">${song.artist}</p>
-        </div>
-      `;
+        // Grid item
+const gridItem = document.createElement('div');
+gridItem.className = 'song-card gradient-border';
+gridItem.innerHTML = `
+  <div class="song-image-container">
+    <a href="${song.spotify_url}" target="_blank" rel="noopener noreferrer">
+      <img src="${song.cover || '/static/placeholder.svg'}" alt="${song.title}" class="song-image">
+    </a>
+  </div>
+  <div class="song-info">
+    <h3 class="song-title">${song.title}</h3>
+    <p class="song-artist">${song.artist}</p>
+  </div>
+`;
+
             gridView.appendChild(gridItem);
 
             // List item
