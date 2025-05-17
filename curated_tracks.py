@@ -1,9 +1,10 @@
 # curated_tracks.py
 
 from typing import Dict, List
+from typing import Tuple
 
 # (age_range, gender) → list of Spotify track IDs
-_CURATED_TRACKS: Dict[tuple[str, str], List[str]] = {
+_CURATED_TRACKS: Dict[Tuple[str, str], List[str]] = {
     # -------------------- Babies (0‑2) ---------------------------
     ("(0-2)", "male"): [
         "2bOh00jX47DuPOLl4tFihp",  # Pinkfong – Baby Shark
