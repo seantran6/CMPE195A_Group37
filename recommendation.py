@@ -73,3 +73,5 @@ if __name__ == "__main__":
     recs = get_recommendations(age, gender)
     for song in recs:
         print(f"{song['title']}: {song['link']}")
+
+get_tracks_for_demographic = get_recommendations
