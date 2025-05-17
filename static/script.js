@@ -1,127 +1,127 @@
-document.addEventListener('DOMContentLoaded', function () {
-    // DOM Elements
-    const video = document.getElementById('webcam');
-    const captureBtn = document.getElementById('capture-btn');
-    const webcamPlaceholder = document.getElementById('webcam-placeholder');
-    const capturedImage = document.getElementById('captured-image');
-    const canvas = document.getElementById('canvas');
-    const analyzingOverlay = document.getElementById('analyzing-overlay');
-    const progressBar = document.getElementById('progress-bar');
-    const analysisResults = document.getElementById('analysis-results');
-    const gender = document.getElementById('gender');
-    const age = document.getElementById('age');
-    const recommendations = document.getElementById('recommendations');
-    const songsGrid = document.getElementById('songs-grid');
-    const songsList = document.getElementById('songs-list');
-    const tabTriggers = document.querySelectorAll('.tab-trigger');
-    const tabContents = document.querySelectorAll('.tab-content');
-    const themeToggle = document.getElementById('theme-toggle');
+document.addEventListener('DOMContentLoaded', () => {
+    // === DOM Elements ===
+    const $ = id => document.getElementById(id);
+    const video = $('webcam');
+    const captureBtn = $('capture-btn');
+    const webcamPlaceholder = $('webcam-placeholder');
+    const capturedImage = $('captured-image');
+    const canvas = $('canvas');
+    const analyzingOverlay = $('analyzing-overlay');
+    const progressBar = $('progress-bar');
+    const analysisResults = $('analysis-results');
+    const gender = $('gender');
+    const age = $('age');
+    const recommendations = $('recommendations');
+    const songsGrid = $('songs-grid');
+    const songsList = $('songs-list');
+    const themeToggle = $('theme-toggle');
     const menuButton = document.querySelector('.menu-button');
     const mainNav = document.querySelector('.main-nav');
+    const tabTriggers = document.querySelectorAll('.tab-trigger');
+    const tabContents = document.querySelectorAll('.tab-content');
 
-    // State
+    // === State ===
     let stream = null;
     let isCapturing = false;
     let isAnalyzing = false;
     let progressInterval = null;
 
-    // Theme handling
-    function initializeTheme() {
-        if (localStorage.getItem('theme') === 'dark' ||
-            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
+    // === Initialization ===
+    initTheme();
+    bindThemeToggle();
+    bindMobileMenu();
+    bindTabs();
+    bindWebcam();
+    handleResponsiveLayout();
+    window.addEventListener('resize', handleResponsiveLayout);
+    document.addEventListener('keydown', handleKeyboardShortcuts);
+    setTimeout(improveAccessibility, 1000);
+
+    // === Theme ===
+    function initTheme() {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const savedTheme = localStorage.getItem('theme');
+        document.documentElement.classList.toggle('dark', savedTheme === 'dark' || (!savedTheme && prefersDark));
     }
 
-    initializeTheme();
-
-    themeToggle.addEventListener('click', function () {
-        if (document.documentElement.classList.contains('dark')) {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-        } else {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-        }
-    });
-
-    // Mobile menu handling
-    if (menuButton && mainNav) {
-        menuButton.addEventListener('click', function () {
-            if (mainNav.style.display === 'flex') {
-                mainNav.style.display = 'none';
-                mainNav.style.opacity = '0';
-                mainNav.style.transform = 'translateY(-10px)';
-            } else {
-                mainNav.style.display = 'flex';
-                mainNav.style.flexDirection = 'column';
-                mainNav.style.position = 'absolute';
-                mainNav.style.top = '4rem';
-                mainNav.style.right = '1rem';
-                mainNav.style.backgroundColor = 'var(--background)';
-                mainNav.style.padding = '1rem';
-                mainNav.style.borderRadius = 'var(--radius)';
-                mainNav.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1)';
-                mainNav.style.zIndex = '50';
-                mainNav.style.opacity = '0';
-                mainNav.style.transform = 'translateY(-10px)';
-                mainNav.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-
-                // Animate in
-                setTimeout(() => {
-                    mainNav.style.opacity = '1';
-                    mainNav.style.transform = 'translateY(0)';
-                }, 10);
-            }
+    function bindThemeToggle() {
+        themeToggle.addEventListener('click', () => {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
         });
+    }
 
-        // Close mobile menu when clicking outside
-        document.addEventListener('click', function (event) {
-            if (mainNav.style.display === 'flex' &&
-                !mainNav.contains(event.target) &&
-                !menuButton.contains(event.target)) {
+    // === Mobile Navigation ===
+    function bindMobileMenu() {
+        menuButton?.addEventListener('click', toggleMobileMenu);
+
+        document.addEventListener('click', e => {
+            if (mainNav?.style.display === 'flex' && !mainNav.contains(e.target) && !menuButton.contains(e.target)) {
                 mainNav.style.display = 'none';
             }
         });
 
-        // Handle window resize
-        window.addEventListener('resize', function () {
+        window.addEventListener('resize', () => {
             if (window.innerWidth >= 768) {
-                mainNav.style.display = 'flex';
-                mainNav.style.position = 'static';
-                mainNav.style.flexDirection = 'row';
-                mainNav.style.padding = '0';
-                mainNav.style.boxShadow = 'none';
-                mainNav.style.opacity = '1';
-                mainNav.style.transform = 'none';
-            } else if (!menuButton.contains(event.target)) {
-                mainNav.style.display = 'none';
+                Object.assign(mainNav.style, {
+                    display: 'flex',
+                    position: 'static',
+                    flexDirection: 'row',
+                    padding: '0',
+                    boxShadow: 'none',
+                    opacity: '1',
+                    transform: 'none'
+                });
             }
         });
     }
 
-    // Tab handling
-    tabTriggers.forEach(trigger => {
-        trigger.addEventListener('click', () => {
-            const tabName = trigger.getAttribute('data-tab');
+    function toggleMobileMenu() {
+        const visible = mainNav.style.display === 'flex';
+        mainNav.style.display = visible ? 'none' : 'flex';
+        if (!visible) {
+            Object.assign(mainNav.style, {
+                flexDirection: 'column',
+                position: 'absolute',
+                top: '4rem',
+                right: '1rem',
+                backgroundColor: 'var(--background)',
+                padding: '1rem',
+                borderRadius: 'var(--radius)',
+                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
+                zIndex: '50',
+                opacity: '0',
+                transform: 'translateY(-10px)',
+                transition: 'opacity 0.3s ease, transform 0.3s ease'
+            });
+            setTimeout(() => {
+                mainNav.style.opacity = '1';
+                mainNav.style.transform = 'translateY(0)';
+            }, 10);
+        }
+    }
 
-            // Update active tab trigger
-            tabTriggers.forEach(t => t.classList.remove('active'));
-            trigger.classList.add('active');
-
-            // Update active tab content
-            tabContents.forEach(content => {
-                content.classList.remove('active');
-                if (content.id === `${tabName}-view`) {
-                    content.classList.add('active');
-                }
+    // === Tabs ===
+    function bindTabs() {
+        tabTriggers.forEach(trigger => {
+            trigger.addEventListener('click', () => {
+                const tabName = trigger.getAttribute('data-tab');
+                tabTriggers.forEach(t => t.classList.remove('active'));
+                trigger.classList.add('active');
+                tabContents.forEach(content => {
+                    content.classList.toggle('active', content.id === `${tabName}-view`);
+                });
             });
         });
-    });
+    }
 
-    // Webcam handling
+    // === Webcam & Capture ===
+    function bindWebcam() {
+        captureBtn.addEventListener('click', () => {
+            isCapturing ? captureFrame() : startWebcam();
+        });
+    }
+
     async function startWebcam() {
         try {
             stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -131,433 +131,192 @@ document.addEventListener('DOMContentLoaded', function () {
             captureBtn.textContent = 'Capture Frame';
             isCapturing = true;
         } catch (err) {
-            console.error('Error accessing webcam:', err);
-            alert('Could not access webcam. Please make sure you have a webcam connected and have granted permission to use it.');
+            alert('Could not access webcam.');
         }
     }
 
-    captureBtn.addEventListener('click', function () {
-        if (!isCapturing) {
-            startWebcam();
-        } else {
-            captureFrame();
-        }
-    });
-
-    async function captureFrame() {
+    function captureFrame() {
         if (!isCapturing) return;
-
-        // Draw the video frame to the canvas
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // Convert the canvas to an image
+        canvas.getContext('2d').drawImage(video, 0, 0);
         const imageData = canvas.toDataURL('image/jpeg');
         capturedImage.src = imageData;
-
-        // Show the captured image and hide the video
         video.style.display = 'none';
         capturedImage.style.display = 'block';
-
-        // Stop the webcam stream
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            stream = null;
-        }
-
-        // Update button
+        stopWebcam();
         captureBtn.textContent = 'Try Again';
         captureBtn.addEventListener('click', resetCapture, { once: true });
-        isCapturing = false;
-
-        // Start analysis
         startAnalysis(imageData);
     }
 
+    function stopWebcam() {
+        stream?.getTracks().forEach(track => track.stop());
+        stream = null;
+        isCapturing = false;
+    }
+
     function resetCapture() {
-        // Reset UI
         capturedImage.style.display = 'none';
         webcamPlaceholder.style.display = 'block';
         analysisResults.style.display = 'none';
         recommendations.style.display = 'none';
-
-        // Reset state
+        captureBtn.textContent = 'Start Webcam';
         isCapturing = false;
         isAnalyzing = false;
-        if (progressInterval) {
-            clearInterval(progressInterval);
-            progressInterval = null;
-        }
-
-        // Reset button
-        captureBtn.textContent = 'Start Webcam';
+        clearInterval(progressInterval);
     }
 
+    // === Analysis ===
     async function startAnalysis(imageData) {
-        // Show analyzing overlay
         analyzingOverlay.style.display = 'flex';
+        progressBar.style.width = '0%';
         isAnalyzing = true;
 
-        // Reset progress bar
-        progressBar.style.width = '0%';
-
-        // Simulate progress while analysis is happening
-        let progress = 0;
-        progressInterval = setInterval(() => {
-            progress += 5;
-            progressBar.style.width = `${progress}%`;
-
-            if (progress >= 100) {
-                clearInterval(progressInterval);
-            }
-        }, 100);
+        simulateProgressBar();
 
         try {
-            // Send image to backend for analysis
-            const response = await fetch('/recognize', {
+            const res = await fetch('/recognize', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ image: imageData })
             });
-
-            const result = await response.json();
-
-            // Hide analyzing overlay
+            const data = await res.json();
             analyzingOverlay.style.display = 'none';
-            isAnalyzing = false;
-
-            // Update the UI with results
-            gender.textContent = result.gender;
-            age.textContent = result.age;
-
-            // Show analysis results
-            analysisResults.style.display = 'block';
-
-            // Animate in the analysis items
-            const animationItems = analysisResults.querySelectorAll('[data-animation]');
-            animationItems.forEach(item => {
-                item.classList.add('animate-in');
-            });
-
-            // Trigger confetti effect
-            triggerConfetti();
-
-            // Fetch and show recommendations
-            fetchRecommendations(result.age, result.gender);
-
-        } catch (error) {
-            console.error('Error during analysis:', error);
+            showAnalysisResults(data);
+        } catch (err) {
             analyzingOverlay.style.display = 'none';
-            alert('Error analyzing image. Please try again.');
+            alert('Error analyzing image.');
         }
+    }
+
+    function simulateProgressBar() {
+        let progress = 0;
+        progressInterval = setInterval(() => {
+            progress += 5;
+            progressBar.style.width = `${progress}%`;
+            if (progress >= 100) clearInterval(progressInterval);
+        }, 100);
+    }
+
+    function showAnalysisResults({ gender: g, age: a }) {
+        gender.textContent = g;
+        age.textContent = a;
+        analysisResults.style.display = 'block';
+        analysisResults.querySelectorAll('[data-animation]').forEach(el => el.classList.add('animate-in'));
+        triggerConfetti();
+        fetchRecommendations(a, g);
     }
 
     function triggerConfetti() {
-        // Create confetti
         const colors = ['#ff5bac', '#7928ca', '#0070f3'];
-        const count = 100;
-
-        for (let i = 0; i < count; i++) {
+        for (let i = 0; i < 100; i++) {
             const confetti = document.createElement('div');
             confetti.className = 'confetti';
-            confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-            confetti.style.left = Math.random() * 100 + 'vw';
-            confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
-            confetti.style.opacity = Math.random();
-            confetti.style.transform = 'rotate(' + Math.random() * 360 + 'deg)';
-
+            confetti.style.cssText = `
+                background-color: ${colors[Math.floor(Math.random() * colors.length)]};
+                left: ${Math.random() * 100}vw;
+                animation-duration: ${Math.random() * 3 + 2}s;
+                opacity: ${Math.random()};
+                transform: rotate(${Math.random() * 360}deg);
+            `;
             document.body.appendChild(confetti);
-
-            // Remove after animation
-            setTimeout(() => {
-                confetti.remove();
-            }, 5000);
+            setTimeout(() => confetti.remove(), 5000);
         }
     }
 
+    // === Recommendations ===
     async function fetchRecommendations(age, gender) {
         try {
-            const response = await fetch(`/recommend_tracks?age=${encodeURIComponent(age)}&gender=${encodeURIComponent(gender)}&n=6`);
-            const data = await response.json();
-
-            // Display recommendations
-            recommendations.style.display = 'block';
-
-            // Populate song cards
+            const res = await fetch(`/recommend_tracks?age=${age}&gender=${gender}&n=6`);
+            const data = await res.json();
             renderSongs(data.tracks);
-
-        } catch (error) {
-            console.error('Error fetching recommendations:', error);
+        } catch (err) {
+            console.error('Error fetching recommendations:', err);
         }
     }
 
     function renderSongs(tracks) {
-        // Clear existing songs
         songsGrid.innerHTML = '';
         songsList.innerHTML = '';
+        recommendations.style.display = 'block';
 
-        if (!tracks || !tracks.length) {
-            songsGrid.innerHTML = '<p>No recommendations available.</p>';
-            songsList.innerHTML = '<p>No recommendations available.</p>';
+        if (!tracks?.length) {
+            songsGrid.innerHTML = '<p>No recommendations.</p>';
+            songsList.innerHTML = '<p>No recommendations.</p>';
             return;
         }
 
-        // Get templates
-        const cardTemplate = document.getElementById('song-card-template');
-        const listItemTemplate = document.getElementById('song-list-item-template');
+        const cardTpl = $('song-card-template');
+        const listTpl = $('song-list-item-template');
 
-        // Populate grid view
-        tracks.forEach((track, index) => {
-            const card = cardTemplate.content.cloneNode(true);
-
-            // Set song data
-            const image = card.querySelector('.song-image');
-            image.src = track.image || track.cover || 'https://via.placeholder.com/300?text=No+Image';
-            image.alt = track.name || track.title;
-
-            card.querySelector('.song-title').textContent = track.name || track.title;
-            card.querySelector('.song-artist').textContent = track.artists || track.artist;
-
-            // Add data attribute for track ID
-            const songCard = card.querySelector('.song-card');
-            songCard.setAttribute('data-track-id', track.id);
-
-            // Add event listeners
-            const playButton = card.querySelector('.play-button');
-            playButton.setAttribute('data-track-id', track.id);
-            playButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                togglePlaySong(track);
-            });
-
-            const likeButton = card.querySelector('.like-button');
-            likeButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                toggleLikeSong(likeButton);
-            });
-
-            // Add progress indicator data attribute
-            const progressIndicator = card.querySelector('.progress-indicator');
-            progressIndicator.setAttribute('data-track-id', track.id);
-
-            // Make whole card clickable to open Spotify link
-            songCard.addEventListener('click', () => {
-                window.open(track.track_url || '#', '_blank');
-            });
-
-            // Add with delay for animation
+        tracks.forEach((track, i) => {
             setTimeout(() => {
-                songsGrid.appendChild(card);
-            }, index * 100);
+                songsGrid.appendChild(createSongCard(track, cardTpl));
+                songsList.appendChild(createSongListItem(track, listTpl));
+            }, i * 100);
         });
 
-        // Populate list view
-        tracks.forEach((track, index) => {
-            const listItem = listItemTemplate.content.cloneNode(true);
-
-            // Set song data
-            const image = listItem.querySelector('.song-list-image');
-            image.src = track.image || track.cover || 'https://via.placeholder.com/300?text=No+Image';
-            image.alt = track.name || track.title;
-
-            listItem.querySelector('.song-list-title').textContent = track.name || track.title;
-            listItem.querySelector('.song-list-artist').textContent = track.artists || track.artist;
-
-            // Add data attribute for track ID
-            const songListItem = listItem.querySelector('.song-list-item');
-            songListItem.setAttribute('data-track-id', track.id);
-
-            // Add event listeners
-            const playButton = listItem.querySelector('.song-list-play');
-            playButton.setAttribute('data-track-id', track.id);
-            playButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                togglePlaySong(track);
-            });
-
-            // Make whole item clickable to open Spotify link
-            songListItem.addEventListener('click', () => {
-                window.open(track.track_url || '#', '_blank');
-            });
-
-            // Add with delay for animation
-            setTimeout(() => {
-                songsList.appendChild(listItem);
-            }, index * 100);
-        });
-
-        // Initialize Lucide icons for the new elements
         lucide.createIcons();
     }
 
-    function togglePlaySong(track) {
-        if (track.preview_url) {
-            let audio = document.getElementById(`audio-${track.id}`);
+    function createSongCard(track, template) {
+        const card = template.content.cloneNode(true);
+        const songCard = card.querySelector('.song-card');
+        const img = card.querySelector('.song-image');
+        const playBtn = card.querySelector('.play-button');
+        const likeBtn = card.querySelector('.like-button');
+        const progress = card.querySelector('.progress-indicator');
 
-            if (!audio) {
-                // Create new audio element if it doesn't exist
-                audio = document.createElement('audio');
-                audio.id = `audio-${track.id}`;
-                audio.src = track.preview_url;
-                document.body.appendChild(audio);
+        img.src = track.image || 'https://via.placeholder.com/300?text=No+Image';
+        card.querySelector('.song-title').textContent = track.title;
+        card.querySelector('.song-artist').textContent = track.artist;
+        playBtn.href = track.link;
 
-                audio.addEventListener('ended', () => {
-                    const playButtons = document.querySelectorAll(`.play-button[data-track-id="${track.id}"]`);
-                    playButtons.forEach(btn => {
-                        const icon = btn.querySelector('i');
-                        icon.setAttribute('data-lucide', 'play');
-                        lucide.createIcons({
-                            icons: {
-                                play: icon
-                            }
-                        });
-                    });
-
-                    // Reset progress indicators
-                    const progressIndicators = document.querySelectorAll(`.progress-indicator[data-track-id="${track.id}"]`);
-                    progressIndicators.forEach(indicator => {
-                        indicator.style.width = '0%';
-                    });
-                });
-            }
-
-            const isPlaying = !audio.paused;
-
-            // Pause all other audios
-            document.querySelectorAll('audio').forEach(a => {
-                if (a.id !== audio.id) {
-                    a.pause();
-
-                    // Reset icons for all other tracks
-                    const trackId = a.id.replace('audio-', '');
-                    const otherPlayButtons = document.querySelectorAll(`.play-button[data-track-id="${trackId}"]`);
-                    otherPlayButtons.forEach(btn => {
-                        const icon = btn.querySelector('i');
-                        icon.setAttribute('data-lucide', 'play');
-                        lucide.createIcons({
-                            icons: {
-                                play: icon
-                            }
-                        });
-                    });
-
-                    // Reset progress indicators
-                    const otherProgressIndicators = document.querySelectorAll(`.progress-indicator[data-track-id="${trackId}"]`);
-                    otherProgressIndicators.forEach(indicator => {
-                        indicator.style.width = '0%';
-                    });
-                }
-            });
-
-            // Toggle play/pause for this audio
-            if (isPlaying) {
-                audio.pause();
-            } else {
+        if (track.preview) {
+            likeBtn.addEventListener('click', () => {
+                const audio = new Audio(track.preview);
                 audio.play();
-
-                // Animate progress bar
-                const progressIndicators = document.querySelectorAll(`.progress-indicator[data-track-id="${track.id}"]`);
-                progressIndicators.forEach(indicator => {
-                    indicator.style.width = '0%';
-                    indicator.style.transition = 'width 30s linear';
-                    setTimeout(() => {
-                        indicator.style.width = '100%';
-                    }, 50);
-                });
-            }
-
-            // Update all play buttons for this track
-            const playButtons = document.querySelectorAll(`.play-button[data-track-id="${track.id}"]`);
-            playButtons.forEach(btn => {
-                const icon = btn.querySelector('i');
-                icon.setAttribute('data-lucide', isPlaying ? 'play' : 'pause');
-                lucide.createIcons({
-                    icons: {
-                        play: icon,
-                        pause: icon
-                    }
-                });
+                progress.style.display = 'block';
+                setTimeout(() => progress.style.display = 'none', 3000);
             });
         } else {
-            // No preview URL available
-            window.open(track.track_url || '#', '_blank');
-        }
-    }
-
-    function toggleLikeSong(button) {
-        button.classList.toggle('active');
-        // In a real app, you would send this to your backend
-    }
-
-    // Add track IDs to elements for easier targeting
-    function addTrackDataAttributes() {
-        const playButtons = document.querySelectorAll('.play-button');
-        playButtons.forEach(btn => {
-            const trackId = btn.closest('[data-track-id]').getAttribute('data-track-id');
-            btn.setAttribute('data-track-id', trackId);
-        });
-
-        const progressIndicators = document.querySelectorAll('.progress-indicator');
-        progressIndicators.forEach(indicator => {
-            const trackId = indicator.closest('[data-track-id]').getAttribute('data-track-id');
-            indicator.setAttribute('data-track-id', trackId);
-        });
-    }
-
-    // Handle keyboard navigation
-    document.addEventListener('keydown', function (e) {
-        // Escape key closes mobile menu
-        if (e.key === 'Escape' && mainNav && mainNav.style.display === 'flex' && window.innerWidth < 768) {
-            mainNav.style.display = 'none';
+            likeBtn.style.display = 'none';
         }
 
-        // Space bar toggles play/pause when a song is focused
-        if (e.key === ' ' && document.activeElement.classList.contains('play-button')) {
+        return card;
+    }
+
+    function createSongListItem(track, template) {
+        const item = template.content.cloneNode(true);
+        item.querySelector('.song-title').textContent = track.title;
+        item.querySelector('.song-artist').textContent = track.artist;
+        item.querySelector('.play-button').href = track.link;
+        return item;
+    }
+
+    // === Accessibility Enhancements ===
+    function handleKeyboardShortcuts(e) {
+        if (e.key === '/') {
             e.preventDefault();
-            document.activeElement.click();
+            $('search')?.focus();
         }
-    });
+    }
 
-    // Add accessibility improvements
     function improveAccessibility() {
-        // Add aria-labels to buttons without text
-        document.querySelectorAll('button:not([aria-label])').forEach(button => {
-            if (!button.textContent.trim()) {
-                const icon = button.querySelector('[data-lucide]');
-                if (icon) {
-                    const iconName = icon.getAttribute('data-lucide');
-                    button.setAttribute('aria-label', iconName.replace(/-/g, ' '));
-                }
-            }
-        });
-
-        // Make sure all interactive elements are keyboard focusable
-        document.querySelectorAll('.song-card, .song-list-item').forEach(item => {
-            if (!item.getAttribute('tabindex')) {
-                item.setAttribute('tabindex', '0');
+        document.querySelectorAll('button, a, input, [tabindex]').forEach(el => {
+            if (!el.getAttribute('aria-label') && !el.textContent.trim()) {
+                el.setAttribute('aria-label', 'button');
             }
         });
     }
 
-    // Call accessibility improvements after DOM is fully loaded
-    setTimeout(improveAccessibility, 1000);
-
-    // Add responsive behavior for the songs grid
+    // === Responsive Layout ===
     function handleResponsiveLayout() {
-        const songsGridContainer = document.getElementById('songs-grid');
-        if (songsGridContainer) {
-            if (window.innerWidth < 640) {
-                songsGridContainer.style.gridTemplateColumns = 'repeat(1, 1fr)';
-            } else if (window.innerWidth < 1024) {
-                songsGridContainer.style.gridTemplateColumns = 'repeat(2, 1fr)';
-            } else {
-                songsGridContainer.style.gridTemplateColumns = 'repeat(3, 1fr)';
-            }
-        }
+        const view = window.innerWidth >= 768 ? 'grid' : 'list';
+        $('grid-tab')?.classList.toggle('active', view === 'grid');
+        $('list-tab')?.classList.toggle('active', view === 'list');
+        $('grid-view')?.classList.toggle('active', view === 'grid');
+        $('list-view')?.classList.toggle('active', view === 'list');
     }
-
-    // Initial call and add event listener for window resize
-    handleResponsiveLayout();
-    window.addEventListener('resize', handleResponsiveLayout);
 });
