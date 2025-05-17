@@ -23,11 +23,16 @@ from curated_tracks import _CURATED_TRACKS as CURATED_TRACKS
 
 # ─────────────────────── Helpers ──────────────────────────────────────
 def age_to_decade(age_label: str) -> str:
-    low, high = map(int, age_label.strip("()").split("-"))
-    midpoint = (low + high) // 2
-    birth_year = 2025 - midpoint
-    decade_start = (birth_year // 10) * 10
-    return f"{decade_start}s"
+    try:
+        low, high = map(int, age_label.strip("()").split("-"))
+        midpoint = (low + high) // 2
+        decade_start = (midpoint // 10) * 10
+        decade_label = f"({decade_start}-{decade_start + 9})"
+        return decade_label
+    except Exception as e:
+        # Log or raise custom error if needed
+        raise ValueError(f"Invalid age label format: {age_label}") from e
+
 
 def search_tracks(query: str, n: int) -> List[str]:
     try:
