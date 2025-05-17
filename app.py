@@ -152,12 +152,43 @@ def recognition():
 def recognize():
     data = request.get_json()
     image_data = data['image']
-    resultImg, gender, age = process_image(image_data)
+    resultImg, gender, age_str = process_image(image_data)
 
+    # Convert age string to int, fallback to 25 if invalid
+    try:
+        age_int = int(age_str)
+    except ValueError:
+        age_int = 25
+
+    # Convert int age to age label format used by your recommendation
+    if age_int < 11:
+        age_label = "0-10"
+    elif age_int < 21:
+        age_label = "11-20"
+    elif age_int < 31:
+        age_label = "21-30"
+    elif age_int < 41:
+        age_label = "31-40"
+    elif age_int < 51:
+        age_label = "41-50"
+    elif age_int < 61:
+        age_label = "51-60"
+    else:
+        age_label = "61-100"
+
+    # Get recommended tracks (e.g., 6 tracks, shuffled)
+    tracks = get_tracks_for_demographic(age_label, gender, n=6, shuffle_result=True)
+
+    # Encode result image to base64 string for sending back to client
     _, buffer = cv2.imencode('.jpg', resultImg)
     result_image = base64.b64encode(buffer).decode('utf-8')
 
-    return jsonify({'gender': gender, 'age': age, 'image': result_image})
+    return jsonify({
+        'gender': gender,
+        'age': age_int,
+        'image': result_image,
+        'tracks': tracks
+    })
 
 @app.route('/recommend_tracks')
 def recommend_tracks():
