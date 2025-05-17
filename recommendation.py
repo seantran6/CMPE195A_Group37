@@ -2,8 +2,7 @@ import os
 import random
 from functools import lru_cache
 from typing import List, Dict
-from curated_tracks import _CURATED_TRACKS
-
+from curated_tracks import _CURATED_TRACKS as CURATED_TRACKS
 
 from dotenv import load_dotenv
 import spotipy
