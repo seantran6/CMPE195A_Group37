@@ -11,6 +11,17 @@ from recommendation import get_tracks_for_demographic
 from dotenv import load_dotenv
 load_dotenv()
 
+client_id = os.getenv("178a1cf820ed475b90627b08a7ee3fcb")
+client_secret = os.getenv("9f85798b2f4b44ff911a7c56fa8319f9")
+print(client_id, client_secret)  # Debug print to confirm they're loaded
+
+sp = spotipy.Spotify(
+    auth_manager=SpotifyClientCredentials(
+        client_id=client_id,
+        client_secret=client_secret,
+    )
+)
+
 import torch
 import torch.nn as nn
 from torchvision.models import resnet18, ResNet18_Weights
