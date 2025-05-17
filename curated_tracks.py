@@ -151,3 +151,7 @@ _CURATED_TRACKS: Dict[Tuple[str, str], List[str]] = {
         "4QxDOjgpYtQDxxbWPuEJOy",  # L-O-V-E
     ],
 }
+
+def get_tracks_for_profile(age_range: str, gender: str) -> List[str]:
+    return _CURATED_TRACKS.get((age_range, gender), [])
+
